@@ -150,12 +150,12 @@ def _zyz_decomposition(U, wire, return_global_phase=False):
 
     >>> U = np.array([[-0.28829348-0.78829734j,  0.30364367+0.45085995j],
     ...               [ 0.53396245-0.10177564j,  0.76279558-0.35024096j]])
-    >>> decomp = _zyz_decomposition(U, 0, return_global_phase=True)
+    >>> decomp = __zyz_decomposition(U, 0, return_global_phase=True)
     >>> decomp
-    [RZ(12.32427531154459, wires=[0]),
-     RY(1.1493817771511352, wires=[0]),
-     RZ(1.733058145303424, wires=[0]),
-     (0.38469215914523336-0.9230449299422961j)*(Identity(wires=[0]))]
+    [RZ(tensor(-0.2420953, requires_grad=True), wires=[0]),
+    RY(tensor(1.14938178, requires_grad=True), wires=[0]),
+    RZ(tensor(1.73305815, requires_grad=True), wires=[0]),
+    (0.38469215914523336-0.9230449299422961j)*(Identity(wires=[0]))]
     """
 
     # Cast to batched format for more consistent code
@@ -195,6 +195,42 @@ def _zyz_decomposition(U, wire, return_global_phase=False):
         operations.append(qml.s_prod(math.exp(1j * alphas), qml.Identity(wire)))
 
     return operations
+
+
+def xyx_decomposition(U, wire, return_global_phase=False):
+    r"""Compute the decomposition of a single-qubit matrix :math:`U` in terms
+    of elementary operations, as a product of X and Y rotations in the form
+    :math:`e^{i\gamma} RX(\phi) RY(\theta) RX(\lambda)`. (batched operation)
+
+    Args:
+        U (array[complex]): A :math:`2 \times 2` unitary matrix.
+        wire (Union[Wires, Sequence[int] or int]): The wire on which to apply the operation.
+        return_global_phase (bool): Whether to return the global phase
+            as a ``qml.s_prod`` between ``exp(1j)*gamma`` and ``qml.Identity`` as the last
+            element of the returned list of operations.
+
+    Returns:
+        list[Operation]: Returns a list of of gates, an ``RX``, an ``RY`` and
+        another ``RX`` gate, which when applied in the order of appearance in the list is
+        equivalent to the unitary :math:`U` up to a global phase. If `return_global_phase=True`,
+        the global phase is returned as the last element of the list.
+
+    **Example**
+
+    >>> U = np.array([[-0.28829348-0.78829734j,  0.30364367+0.45085995j],
+    ...               [ 0.53396245-0.10177564j,  0.76279558-0.35024096j]])
+    >>> decomp = xyx_decomposition(U, 0, return_global_phase=True)
+    >>> decomp
+    [RX(10.845351366405708, wires=[0]),
+     RY(1.3974974118006174, wires=[0]),
+     RX(0.45246583660683803, wires=[0]),
+     (0.38469215914523336-0.9230449299422961j)*(Identity(wires=[0]))]
+    """
+    warnings.warn(
+        "The xyx_decomposition function is deprecated and will be removed soon. Use :func:`one_qubit_decomposition` "
+        "with the keyword  rotations=`XYX`"
+    )
+    return _xyx_decomposition(U=U, wire=wire, return_global_phase=return_global_phase)
 
 
 def _xyx_decomposition(U, wire, return_global_phase=False):

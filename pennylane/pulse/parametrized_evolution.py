@@ -438,6 +438,7 @@ class ParametrizedEvolution(Operation):
             return_intermediate=return_intermediate,
             complementary=complementary,
             dense=dense,
+            do_queue=None,
             id=self.id,
             **odeint_kwargs,
         )
