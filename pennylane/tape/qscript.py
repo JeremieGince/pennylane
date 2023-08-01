@@ -1356,8 +1356,6 @@ class QuantumScript:
         return cls(*process_queue(queue), shots=shots)
 
 
-<<<<<<< HEAD
-=======
 class SpecsDict(dict):
     """A dictionary to track and warn about deprecated keys"""
 
@@ -1382,7 +1380,6 @@ class SpecsDict(dict):
         return SpecsDict(self.items())
 
 
->>>>>>> 706e6dfee41dc221f81531b8f2141beecec5a0ba
 def make_qscript(fn, shots: Optional[Union[int, Sequence, Shots]] = None):
     """Returns a function that generates a qscript from a quantum function without any
     operation queuing taking place.

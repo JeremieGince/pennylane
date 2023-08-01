@@ -273,14 +273,10 @@ class TestSingleShotGradientIntegration:
 
     dev = qml.device("default.qubit", wires=2, shots=100)
 
-<<<<<<< HEAD
-    expval_cost = catch_warn_ExpvalCost(ansatz2, H, dev)
-=======
     def ansatz(x, **kwargs):
         qml.StronglyEntanglingLayers(x, wires=[0, 1])
 
     expval_cost = catch_warn_ExpvalCost(ansatz, H, dev)
->>>>>>> 706e6dfee41dc221f81531b8f2141beecec5a0ba
     qnode = expval_cost.qnodes[0]
 
     @pytest.mark.parametrize("cost_fn", [qnode, expval_cost])
@@ -288,10 +284,6 @@ class TestSingleShotGradientIntegration:
         """Test that a simple QNode with a single array argument with extra dimensions correctly
         performs an optimization step, and that the single-shot gradients generated have the
         correct shape"""
-<<<<<<< HEAD
-        # pylint: disable=protected-access
-=======
->>>>>>> 706e6dfee41dc221f81531b8f2141beecec5a0ba
         opt = qml.ShotAdaptiveOptimizer(min_shots=10)
         spy_single_shot_expval = mocker.spy(opt, "_single_shot_expval_gradients")
         spy_single_shot_qnodes = mocker.spy(opt, "_single_shot_qnode_gradients")
