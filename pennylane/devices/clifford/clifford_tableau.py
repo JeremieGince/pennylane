@@ -1,10 +1,12 @@
 from itertools import product
 import numpy as np
 
+
 def _phase(exponent, global_shift):
     return np.exp(1j * np.pi * global_shift * exponent)
 
-class CHForm():
+
+class CHForm:
     r"""A representation of stabilizer states using the CH form,
 
         $|\psi> = \omega U_C U_H |s>$
@@ -17,25 +19,25 @@ class CHForm():
     def __init__(self, num_qubits: int, initial_state: list = []) -> None:
         """Initializes CHForm for a state (F, G, M, γ, v, s, ω)"""
         self.n = num_qubits
-        
+
         # The state is represented by a set of binary matrices and vectors.
         self.F = np.eye(self.n, dtype=bool)
         self.G = np.eye(self.n, dtype=bool)
         self.M = np.zeros((self.n, self.n), dtype=bool)
-        
+
         self.gamma = np.zeros(self.n, dtype=int)
-        
+
         self.v = np.zeros(self.n, dtype=bool)
         self.s = np.zeros(self.n, dtype=bool)
 
-        self.omega = 1+0j
-        
+        self.omega = 1 + 0j
+
         # Apply X for every non-zero element of initial_state
         for qb, val in enumerate(initial_state):
             if val:
                 self.apply_x(qb)
-        
-    def copy(self, deep_copy_buffers: bool = True) -> 'CHForm':
+
+    def copy(self, deep_copy_buffers: bool = True) -> "CHForm":
         """Copies CHForm for a state (F, G, M, γ, v, s, ω)"""
         copy = CHForm(self.n)
         copy.G = self.G.copy()
@@ -45,7 +47,7 @@ class CHForm():
         copy.v = self.v.copy()
         copy.s = self.s.copy()
         copy.omega = self.omega
-        
+
         return copy
 
     def inner_product_of_state_and_x(self, basis):
@@ -65,7 +67,7 @@ class CHForm():
             * bool(np.all(self.v | (u == self.s)))
         )
 
-    def to_state_vector(self) -> 'np.ndarray':
+    def to_state_vector(self) -> "np.ndarray":
         """Converts CHForm to statevector"""
         arr = np.zeros(2**self.n, dtype=complex)
 
@@ -75,7 +77,7 @@ class CHForm():
 
         return arr
 
-    def state_vector(self) -> 'np.ndarry':
+    def state_vector(self) -> "np.ndarry":
         """Get statevector for CHForm"""
         return self.to_state_vector()
 
@@ -83,20 +85,20 @@ class CHForm():
         """Applies Z gate"""
         if exponent % 2:
             if exponent % 0.5:
-                raise ValueError('X exponent must be multiple of half integer')
+                raise ValueError("X exponent must be multiple of half integer")
             effective_exponent = exponent % 2
             for _ in range(int(effective_exponent * 2)):
                 # Prescription for S left multiplication.
                 # Reference: https://arxiv.org/abs/1808.00128 Proposition 4 end
                 self.M[axis, :] ^= self.G[axis, :]
                 self.gamma[axis] = (self.gamma[axis] - 1) % 4
-        
+
         self.omega *= _phase(exponent, global_shift)
 
     def apply_h(self, axis: int, exponent: float = 1, global_shift: float = 0):
         if exponent % 2:
             if exponent % 1:
-                raise ValueError('H exponent must be integer')
+                raise ValueError("H exponent must be integer")
             # Prescription for H left multiplication
             # Reference: https://arxiv.org/abs/1808.00128
             # Equations 48, 49 and Proposition 4
@@ -109,27 +111,26 @@ class CHForm():
             beta %= 2
             delta = (self.gamma[axis] + 2 * (alpha + beta)) % 4
             self.update_sum(t, u, delta=delta, alpha=alpha)
-        
+
         self.omega *= _phase(exponent, global_shift)
 
     def apply_x(self, axis: int, exponent: float = 1, global_shift: float = 0):
         """Applies X gate"""
         if exponent % 2:
             if exponent % 0.5:
-                raise ValueError('X exponent must be multiple of half integer')
+                raise ValueError("X exponent must be multiple of half integer")
             self.apply_h(axis)
             self.apply_z(axis, exponent)
             self.apply_h(axis)
-        
+
         self.omega *= _phase(exponent, global_shift)
 
     def apply_y(self, axis: int, exponent: float = 1, global_shift: float = 0):
-        
         if exponent % 0.5:
-            raise ValueError('X exponent must be multiple of half integer')
-        
+            raise ValueError("X exponent must be multiple of half integer")
+
         shift = _phase(exponent, global_shift)
-        
+
         if exponent % 2 == 0:
             self.omega *= shift
         elif exponent % 2 == 0.5:
@@ -152,7 +153,7 @@ class CHForm():
     ):
         if exponent % 2 != 0:
             if exponent % 1 != 0:
-                raise ValueError('CZ exponent must be integer')  # coverage: ignore
+                raise ValueError("CZ exponent must be integer")  # coverage: ignore
             # Prescription for CZ left multiplication.
             # Reference: https://arxiv.org/abs/1808.00128 Proposition 4 end
             self.M[control_axis, :] ^= self.G[target_axis, :]
@@ -164,7 +165,7 @@ class CHForm():
     ):
         if exponent % 2 != 0:
             if exponent % 1 != 0:
-                raise ValueError('CX exponent must be integer')  # coverage: ignore
+                raise ValueError("CX exponent must be integer")  # coverage: ignore
             # Prescription for CX left multiplication.
             # Reference: https://arxiv.org/abs/1808.00128 Proposition 4 end
             self.gamma[control_axis] = (
@@ -235,7 +236,7 @@ class CHForm():
 
         Precondition: y != z"""
         if y == z:
-            raise ValueError('|y> is equal to |z>')
+            raise ValueError("|y> is equal to |z>")
 
         if not v:
             omega = (1j) ** (delta * int(y))
@@ -279,13 +280,13 @@ class CHForm():
             self.omega /= np.sqrt(2)
 
         self.update_sum(t, u, delta=delta)
-    
+
     def apply_global_phase(self, coefficient):
         self.omega *= coefficient
 
-    def measure(self, axes, seed = None):
+    def measure(self, axes, seed=None):
         return [self._measure(axis, random_state.parse_random_state(seed)) for axis in axes]
-    
+
     def tablueau(self):
         """Gets the tableau in stacked form"""
         omegas = np.zeros(self.n, dtype=complex)
