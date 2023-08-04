@@ -603,7 +603,7 @@ def import_state(solver, tol=1e-15):
 
 
 def _wfdict_to_statevector(wf_dict, norbs):
-    r"""Convert a wavefunction in sparse dictionary format to a PennyLane statevector.
+    r"""Convert a wavefunction in sparse dictionary format to a state vector.
 
     In the sparse dictionary format, the keys (int_a, int_b) are integers whose binary
     representation shows the Fock occupation vector for alpha and beta electrons and values are the
