@@ -120,6 +120,7 @@ class DefaultQubit(QubitDevice):
         "MultiControlledX",
         "IntegerComparator",
         "DiagonalQubitUnitary",
+        "Projector",
         "PauliX",
         "PauliY",
         "PauliZ",
@@ -270,6 +271,8 @@ class DefaultQubit(QubitDevice):
 
         # apply the circuit operations
         for i, operation in enumerate(operations):
+            print(self.state)
+            print(operation)
             if i > 0 and isinstance(operation, (QubitStateVector, BasisState)):
                 raise DeviceError(
                     f"Operation {operation.name} cannot be used after other Operations have already been applied "

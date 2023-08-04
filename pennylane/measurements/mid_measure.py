@@ -24,7 +24,9 @@ from pennylane.wires import Wires
 from .measurements import MeasurementProcess, MidMeasure
 
 
-def measure(wires: Wires, postselect: Optional[int] = None):  # TODO: Change name to mid_measure
+def measure(
+    wires: Wires, reset: Optional[bool] = False, postselect: Optional[int] = None
+):  # TODO: Change name to mid_measure
     """Perform a mid-circuit measurement in the computational basis on the
     supplied qubit.
 
@@ -66,6 +68,7 @@ def measure(wires: Wires, postselect: Optional[int] = None):  # TODO: Change nam
 
     Args:
         wires (Wires): The wire of the qubit the measurement process applies to.
+        reset (Optional[bool]): Whether to reset the wire after measurement.
         postselect (Optional[int]): If specified, specifies the computational basis state on
             which to postselect the post-measurement state. Must be 0 or 1 if postselection
             is wanted.
@@ -82,13 +85,10 @@ def measure(wires: Wires, postselect: Optional[int] = None):  # TODO: Change nam
             "Only a single qubit can be measured in the middle of the circuit"
         )
 
-    # Create a UUID and a map between MP and MV to support serialization
-    measurement_id = str(uuid.uuid4())[:8]
     return MidMeasureMP(
         wires=wire,
+        reset=reset,
         postselect=postselect,
-        measurement_ids=[measurement_id],
-        processing_fn=lambda v: v,
     )
 
 
@@ -103,26 +103,30 @@ class MidMeasureMP(MeasurementProcess):
     Args:
         wires (.Wires): The wires the measurement process applies to.
             This can only be specified if an observable was not provided.
+        reset (Optional[bool]): Whether to reset the wire after measurement.
         postselect (Optional[int]): If specified, specifies the computational basis state on
             which to postselect the post-measurement state. Must be 0 or 1 if postselection
             is wanted.
-        measurement_ids (List[str]): custom label given to a measurement instance, can be useful for some
+        measurement_ids (Optional[List[str]]): custom label given to a measurement instance, can be useful for some
             applications where the instance has to be identified
-        processing_fn (Callable): A lazily transformation applied to the measurement values.
+        processing_fn (Optional[Callable]): A lazily transformation applied to the measurement values.
     """
 
     def __init__(
         self,
         wires: Wires,
+        reset: Optional[bool] = False,
         postselect: Optional[int] = None,
         measurement_ids: Optional[List[str]] = None,
         processing_fn: Optional[Callable] = None,
     ):
         super().__init__(wires=Wires(wires))
+        self.reset = reset
         self.postselect = postselect
+        # Create a UUID to support serialization
         self.measurement_ids = measurement_ids or [str(uuid.uuid4())[:8]]
         self.processing_fn = processing_fn if processing_fn is not None else lambda v: v
-        # id can be used to identify the mid-circuit measurement
+        # ID can be used to identify the mid-circuit measurement
         self.id = self.measurement_ids[0]
 
     @property
@@ -247,7 +251,9 @@ class MidMeasureMP(MeasurementProcess):
 
         with qml.queuing.QueuingManager.stop_recording():
             new_mp = MidMeasureMP(
-                merged_wires, measurement_ids=merged_measurement_ids, processing_fn=merged_fn
+                merged_wires,
+                measurement_ids=merged_measurement_ids,
+                processing_fn=merged_fn,
             )
         return new_mp
 

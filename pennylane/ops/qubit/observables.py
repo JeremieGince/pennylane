@@ -23,7 +23,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 import pennylane as qml
-from pennylane.operation import AnyWires, Observable
+from pennylane.operation import AnyWires, Observable, Operation
 from pennylane.wires import Wires
 
 from .matrix_ops import QubitUnitary
@@ -321,7 +321,7 @@ class SparseHamiltonian(Observable):
         return H
 
 
-class Projector(Observable):
+class Projector(Observable, Operation):
     r"""Projector(state, wires, id=None)
     Observable corresponding to the state projector :math:`P=\ket{\phi}\bra{\phi}`.
 
@@ -428,7 +428,7 @@ class Projector(Observable):
         return copied_op
 
 
-class _BasisStateProjector(Observable):
+class _BasisStateProjector(Observable, Operation):
     # The call signature should be the same as Projector.__new__ for the positional
     # arguments, but with free key word arguments.
     def __init__(self, state, wires, id=None):
@@ -553,7 +553,7 @@ class _BasisStateProjector(Observable):
         return []
 
 
-class _StateVectorProjector(Observable):
+class _StateVectorProjector(Observable, Operation):
     # The call signature should be the same as Projector.__new__ for the positional
     # arguments, but with free key word arguments.
     def __init__(self, state, wires, id=None):
