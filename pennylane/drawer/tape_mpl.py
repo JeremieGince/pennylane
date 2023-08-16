@@ -24,7 +24,7 @@ from pennylane.wires import Wires
 from .mpldrawer import MPLDrawer
 from .drawable_layers import drawable_layers
 from .utils import convert_wire_order, unwrap_controls
-from .style import _set_style
+from .style import _set_style, custom_pl_styles
 
 has_mpl = True
 try:
@@ -193,17 +193,21 @@ def _tape_mpl(tape, wire_order=None, show_all_wires=False, decimals=None, **kwar
     # max one measurement symbol per wire
     measured_wires = Wires([])
 
+    measure_kwargs = {}
+    if "measure_bg" in custom_pl_styles:
+        measure_kwargs = {"facecolor": custom_pl_styles["measure_bg"]}
+
     for m in tape.measurements:
         # state and probs
         if len(m.wires) == 0:
             for wire in range(n_wires):
                 if wire not in measured_wires:
-                    drawer.measure(n_layers, wire)
+                    drawer.measure(n_layers, wire, box_options=measure_kwargs)
             break
 
         for wire in m.wires:
             if wire not in measured_wires:
-                drawer.measure(n_layers, wire_map[wire])
+                drawer.measure(n_layers, wire_map[wire], box_options=measure_kwargs)
                 measured_wires += wire
 
     return drawer.fig, drawer.ax
