@@ -193,21 +193,30 @@ def _tape_mpl(tape, wire_order=None, show_all_wires=False, decimals=None, **kwar
     # max one measurement symbol per wire
     measured_wires = Wires([])
 
-    measure_kwargs = {}
-    if "measure_bg" in custom_pl_styles:
-        measure_kwargs = {"facecolor": custom_pl_styles["measure_bg"]}
+    measure_box_options = custom_pl_styles.get("measure_box_options", {})
+    measure_line_options = custom_pl_styles.get("measure_line_options", {})
 
     for m in tape.measurements:
         # state and probs
         if len(m.wires) == 0:
             for wire in range(n_wires):
                 if wire not in measured_wires:
-                    drawer.measure(n_layers, wire, box_options=measure_kwargs)
+                    drawer.measure(
+                        n_layers,
+                        wire,
+                        box_options=measure_box_options,
+                        lines_options=measure_line_options,
+                    )
             break
 
         for wire in m.wires:
             if wire not in measured_wires:
-                drawer.measure(n_layers, wire_map[wire], box_options=measure_kwargs)
+                drawer.measure(
+                    n_layers,
+                    wire_map[wire],
+                    box_options=measure_box_options,
+                    lines_options=measure_line_options,
+                )
                 measured_wires += wire
 
     return drawer.fig, drawer.ax
