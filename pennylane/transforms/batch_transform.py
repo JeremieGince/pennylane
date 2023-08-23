@@ -29,6 +29,15 @@ PostprocessingFn = Callable[[ResultBatch], ResultBatch]
 QuantumTapeBatch = Tuple[qml.tape.QuantumScript]
 
 
+# pylint: disable=protected-access
+def _get_device_shots(device) -> qml.measurements.Shots:
+    if isinstance(device, qml.Device):
+        if device._shot_vector:
+            return qml.measurements.Shots(device._raw_shot_sequence)
+        return qml.measurements.Shots(device.shots)
+    return device.shots
+
+
 class batch_transform:
     r"""Class for registering a tape transform that takes a tape, and outputs
     a batch of tapes to be independently executed on a quantum device.
@@ -287,7 +296,7 @@ class batch_transform:
             )
 
         def _wrapper(*args, **kwargs):
-            shots = kwargs.pop("shots", False)
+            shots = kwargs.get("shots", _get_device_shots(qnode.device))
 
             argnums = kwargs.pop("argnums", None)
 
@@ -299,6 +308,7 @@ class batch_transform:
             if old_interface == "auto":
                 qnode.interface = qml.math.get_interface(*args, *list(kwargs.values()))
 
+            qnode._update_gradient_fn(shots=shots)  # pylint: disable=protected-access
             qnode.construct(args, kwargs)
             tapes, processing_fn = self.construct(qnode.qtape, *targs, **tkwargs)
 

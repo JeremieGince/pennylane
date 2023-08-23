@@ -632,6 +632,8 @@ class gradient_transform(qml.batch_transform):
             if not hybrid:
                 return qjac
 
+            # classical jacobian changes the qnodes tape to no longer have shots set
+            has_partitioned_shots = qnode.tape.shots.has_partitioned_shots
             kwargs.pop("shots", False)
 
             # Special case where we apply a Jax transform (jacobian e.g.) on the gradient transform and argnums are
@@ -643,7 +645,6 @@ class gradient_transform(qml.batch_transform):
 
             if qml.active_return():
                 num_measurements = len(qnode.tape.measurements)
-                has_partitioned_shots = qnode.tape.shots.has_partitioned_shots
                 return _contract_qjac_with_cjac(qjac, cjac, num_measurements, has_partitioned_shots)
 
             return _contract_qjac_with_cjac_legacy(qjac, cjac)
