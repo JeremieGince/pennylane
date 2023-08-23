@@ -14,7 +14,7 @@
 """
 Tests for the gradients.pulse_gradient module.
 """
-
+import gc
 import warnings
 import copy
 import pytest
@@ -108,6 +108,8 @@ class TestSplitEvolOps:
 
             # Check that the inserted exponential is correct
             assert qml.equal(qml.PauliRot(exp_shift, word, wires=ob.wires), _ops[1])
+        jax.clear_caches()
+        gc.collect()
 
     split_evol_ops_test_cases_general = [
         (
@@ -180,6 +182,8 @@ class TestSplitEvolOps:
 
             # Check that the inserted exponential is correct
             assert qml.equal(qml.exp(qml.dot([-1j * exp_shift], [ob])), _ops[1])
+        jax.clear_caches()
+        gc.collect()
 
     def test_warnings(self):
         """Test that a warning is raised for computing eigenvalues of a Hamiltonian
@@ -201,6 +205,8 @@ class TestSplitEvolOps:
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             _split_evol_ops(op, ob, tau=0.4)
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -210,6 +216,8 @@ class TestSplitEvolTapes:
 
     def test_with_standard_ops(self):
         """Test basic behaviour of the operation replacement with standard qml ops."""
+        import jax
+
         ops = [qml.RX(0.4, 2), qml.PauliZ(0), qml.CNOT([0, 2])]
         tape = qml.tape.QuantumScript(ops)
         split_evolve_ops = (
@@ -222,9 +230,13 @@ class TestSplitEvolTapes:
             assert qml.equal(t.operations[0], ops[0])
             assert all(qml.equal(o1, o2) for o1, o2 in zip(t.operations[1:-1], new_ops))
             assert qml.equal(t.operations[-1], ops[2])
+        jax.clear_caches()
+        gc.collect()
 
     def test_with_parametrized_evolution(self):
         """Test basic behaviour of the operation replacement with ParametrizedEvolution."""
+
+        import jax
 
         ham_single_q_pwc = qml.pulse.pwc((2.0, 4.0)) * qml.PauliZ(0)
         ops = [qml.evolve(ham_single_q_pwc)([np.linspace(0, 1, 9)], 0.4)]
@@ -263,6 +275,8 @@ class TestSplitEvolTapes:
             assert qml.equal(t.operations[0], ops[0])
             assert all(qml.equal(o1, o2) for o1, o2 in zip(t.operations[1:-1], new_ops))
             assert qml.equal(t.operations[-1], ops[2])
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -288,6 +302,7 @@ class TestParshiftAndIntegrate:
         the number of shifts in the shift rule and with the number of splitting times.
         """
         from jax import numpy as jnp
+        import jax
 
         np.random.seed(3751)
 
@@ -329,6 +344,8 @@ class TestParshiftAndIntegrate:
         contraction = f"ms,mts{meas_letter},mt...->{meas_letter}..."
         expected = np.einsum(contraction, _psr_coeffs, _results, _cjacs)
         assert np.allclose(res, expected * prefactor)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("multi_term", [1, 4])
     @pytest.mark.parametrize("meas_shape", [(), (4,)])
@@ -347,6 +364,7 @@ class TestParshiftAndIntegrate:
         This is the variant of the previous test that uses broadcasting.
         """
         from jax import numpy as jnp
+        import jax
 
         np.random.seed(3751)
 
@@ -392,6 +410,8 @@ class TestParshiftAndIntegrate:
         contraction = f"ms,mst{meas_letter},mt...->{meas_letter}..."
         expected = np.einsum(contraction, _psr_coeffs, _results, _cjacs)
         assert np.allclose(res, expected * prefactor)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("multi_term", [1, 4])
     @pytest.mark.parametrize("meas_shape", [(), (4,)])
@@ -411,6 +431,7 @@ class TestParshiftAndIntegrate:
         the number of shifts in the shift rule and with the number of splitting times.
         """
         from jax import numpy as jnp
+        import jax
 
         np.random.seed(3751)
 
@@ -465,6 +486,8 @@ class TestParshiftAndIntegrate:
             assert all(r.shape == meas_shape + par_shape for r in res)
 
             assert np.allclose(np.stack(res), expected * prefactor)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("multi_term", [1, 4])
     @pytest.mark.parametrize("meas_shape", [(), (4,)])
@@ -485,6 +508,7 @@ class TestParshiftAndIntegrate:
         This is the variant of the previous test that uses broadcasting.
         """
         from jax import numpy as jnp
+        import jax
 
         np.random.seed(3751)
 
@@ -544,6 +568,8 @@ class TestParshiftAndIntegrate:
             assert all(r.shape == meas_shape + par_shape for r in res)
 
             assert np.allclose(np.stack(res), expected * prefactor)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("multi_term", [1, 4])
     @pytest.mark.parametrize("meas_shape", [(), (4,)])
@@ -561,6 +587,7 @@ class TestParshiftAndIntegrate:
         the number of shifts in the shift rule and with the number of splitting times.
         """
         from jax import numpy as jnp
+        import jax
 
         np.random.seed(3751)
 
@@ -616,6 +643,8 @@ class TestParshiftAndIntegrate:
         contraction = f"ms,mtsNn{meas_letter},mt...->Nn{meas_letter}..."
         expected = np.einsum(contraction, _psr_coeffs, _results, _cjacs)
         assert np.allclose(np.stack(res), expected * prefactor)
+        jax.clear_caches()
+        gc.collect()
 
     # TODO: Once #2690 is resolved and the corresponding error is removed,
     # unskip the following test
@@ -637,6 +666,7 @@ class TestParshiftAndIntegrate:
         This is the variant of the previous test that uses broadcasting.
         """
         from jax import numpy as jnp
+        import jax
 
         np.random.seed(3751)
 
@@ -697,6 +727,8 @@ class TestParshiftAndIntegrate:
         contraction = f"ms,msNnt{meas_letter},mt...->Nn{meas_letter}..."
         expected = np.einsum(contraction, _psr_coeffs, _results, _cjacs)
         assert np.allclose(np.stack(res), expected * prefactor)
+        jax.clear_caches()
+        gc.collect()
 
     # TODO: Once #2690 is resolved and the corresponding error is removed,
     # remove the following test
@@ -877,6 +909,7 @@ class TestStochPulseGrad:
             else:
                 assert qml.math.allclose(r, np.zeros(exp_shape))
         jax.clear_caches()
+        gc.collect()
 
     def test_some_zero_grads(self):
         """Test that a zero gradient is returned for trainable parameters that are
@@ -900,6 +933,7 @@ class TestStochPulseGrad:
         assert qml.math.allclose(res[0][0], np.zeros(5))
         assert qml.math.allclose(res[1][0], np.zeros((2, 5)))
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_split_times", [1, 3])
     @pytest.mark.parametrize("t", [2.0, 3, (0.5, 0.6), (0.1, 0.9, 1.2)])
@@ -927,6 +961,7 @@ class TestStochPulseGrad:
         res = fn(qml.execute(tapes, dev, None))
         assert qml.math.isclose(res, -2 * jnp.sin(2 * p) * delta_t)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_split_times", [1, 3])
     @pytest.mark.parametrize("t", [2.0, 3, (0.5, 0.6), (0.1, 0.9, 1.2)])
@@ -958,6 +993,7 @@ class TestStochPulseGrad:
         res = fn(qml.execute(tapes, dev, None))
         assert qml.math.isclose(res, -2 * jnp.sin(2 * p) * delta_t * prefactor)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("t", [0.02, (0.5, 0.6)])
     def test_sin_envelope_rz_expval(self, t):
@@ -997,6 +1033,7 @@ class TestStochPulseGrad:
         # classical Jacobian is being estimated with the Monte Carlo sampling -> coarse tolerance
         assert qml.math.allclose(res, exp_grad, atol=0.2)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("t", [0.02, (0.5, 0.6)])
     def test_sin_envelope_rx_probs(self, t):
@@ -1038,6 +1075,7 @@ class TestStochPulseGrad:
         # classical Jacobian is being estimated with the Monte Carlo sampling -> coarse tolerance
         assert qml.math.allclose(jac, exp_jac, atol=0.2)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("t", [0.02, (0.5, 0.6)])
     def test_sin_envelope_rx_expval_probs(self, t):
@@ -1083,6 +1121,7 @@ class TestStochPulseGrad:
         for j, e in zip(jac, exp_jac):
             assert qml.math.allclose(j, e, atol=0.2)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("t", [0.02, (0.5, 0.6)])
     def test_pwc_envelope_rx(self, t):
@@ -1113,6 +1152,7 @@ class TestStochPulseGrad:
             res, -2 * jnp.sin(2 * p) * (T[1] - T[0]) / len(params[0]), atol=0.01
         )
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("t", [2.0, 3, (0.5, 0.6)])
     def test_constant_commuting(self, t):
@@ -1144,6 +1184,7 @@ class TestStochPulseGrad:
         ]
         assert qml.math.allclose(res, exp_grad)
         jax.clear_caches()
+        gc.collect()
 
     def test_advanced_pulse(self):
         """Test the derivative of a more complex pulse."""
@@ -1182,6 +1223,7 @@ class TestStochPulseGrad:
         exp_grad = jax.grad(qnode)(params)
         assert all(qml.math.allclose(r, e, rtol=0.4) for r, e in zip(res, exp_grad))
         jax.clear_caches()
+        gc.collect()
 
     def test_randomness(self):
         """Test that the derivative of a pulse is exactly the same when reusing a seed and
@@ -1221,6 +1263,7 @@ class TestStochPulseGrad:
         assert res_a_0 == res_a_1
         assert not res_a_0 == res_b
         jax.clear_caches()
+        gc.collect()
 
     def test_two_pulses(self):
         """Test that the derivatives of two pulses in a circuit are computed correctly."""
@@ -1253,6 +1296,7 @@ class TestStochPulseGrad:
         exp_grad = exp_grad[0] + exp_grad[1]
         assert all(qml.math.allclose(r, e, rtol=0.4) for r, e in zip(res, exp_grad))
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize(
         "generator, exp_num_tapes, prefactor",
@@ -1291,6 +1335,7 @@ class TestStochPulseGrad:
         res_jit = jax.jit(fun)(params)
         assert qml.math.isclose(res, res_jit)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("shots", [None, 100])
     def test_shots_attribute(self, shots):
@@ -1348,6 +1393,8 @@ class TestStochPulseGradQNode:
         exp_grad = -2 * jnp.sin(2 * p) * T
         assert jnp.allclose(grad, exp_grad)
         assert tracker.totals["executions"] == 4  # two shifted tapes, two splitting times
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -1380,6 +1427,7 @@ class TestStochPulseGradIntegration:
         exp_grad = -2 * jnp.sin(2 * p) * T
         assert qml.math.allclose(grad, exp_grad, atol=tol, rtol=0.0)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("shots, tol", [(None, 1e-4), (100, 0.1), ([100, 99], 0.1)])
     @pytest.mark.parametrize("num_split_times", [1, 2])
@@ -1411,6 +1459,7 @@ class TestStochPulseGradIntegration:
         exp_grad = [[-2 * jnp.sin(2 * (p_x + p_y)) * T_x], [-2 * jnp.sin(2 * (p_x + p_y)) * T_y]]
         assert qml.math.allclose(grad, exp_grad, atol=tol, rtol=0.0)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("shots, tol", [(None, 1e-4), (100, 0.1), ([100, 99], 0.1)])
     @pytest.mark.parametrize("num_split_times", [1, 2])
@@ -1438,6 +1487,7 @@ class TestStochPulseGradIntegration:
         exp_jac = jnp.array([-1, 1]) * jnp.sin(2 * p) * T
         assert qml.math.allclose(jac, exp_jac, atol=tol, rtol=0.0)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("shots, tol", [(None, 1e-4), (100, 0.1), ([100, 100], 0.1)])
     @pytest.mark.parametrize("num_split_times", [1, 2])
@@ -1471,6 +1521,7 @@ class TestStochPulseGradIntegration:
             for j, e in zip(jac, exp_jac):
                 assert qml.math.allclose(j[0], e, atol=tol, rtol=0.0)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.xfail
     @pytest.mark.parametrize("num_split_times", [1, 2])
@@ -1498,6 +1549,7 @@ class TestStochPulseGradIntegration:
         jit_grad = jax.jit(jax.grad(circuit))(params, T=T)
         assert qml.math.isclose(jit_grad, exp_grad)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.slow
     def test_advanced_qnode(self):
@@ -1539,6 +1591,7 @@ class TestStochPulseGradIntegration:
             qml.math.allclose(r, e, rtol=0.4) for r, e in zip(grad_pulse_grad, grad_backprop)
         )
         jax.clear_caches()
+        gc.collect()
 
     def test_multi_return_broadcasting_multi_shots_raises(self):
         """Test that a simple qnode that returns an expectation value and probabilities
@@ -1567,6 +1620,7 @@ class TestStochPulseGradIntegration:
         with pytest.raises(NotImplementedError, match="Broadcasting, multiple measurements and"):
             jax.jacobian(circuit)(params)
         jax.clear_caches()
+        gc.collect()
 
     # TODO: delete error test above and uncomment the following test case once #2690 is resolved.
     @pytest.mark.parametrize("shots, tol", [(None, 1e-4), (100, 0.1)])  # , ([100, 100], 0.1)])
@@ -1605,6 +1659,7 @@ class TestStochPulseGradIntegration:
             for j, e in zip(jac, exp_jac):
                 assert qml.math.allclose(j[0], e, atol=tol, rtol=0.0)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_split_times", [1, 2])
     def test_broadcasting_coincides_with_nonbroadcasting(self, num_split_times):
@@ -1650,6 +1705,7 @@ class TestStochPulseGradIntegration:
         for j0, j1 in zip(jac_bc, jac_no_bc):
             assert qml.math.allclose(j0, j1)
         jax.clear_caches()
+        gc.collect()
 
     def test_with_drive_exact(self):
         """Test that a HardwareHamiltonian only containing a drive is differentiated correctly
@@ -1675,6 +1731,7 @@ class TestStochPulseGradIntegration:
         exact = jax.grad(cost_jax)(params)
         assert qml.math.allclose(res, exact, atol=6e-5)
         jax.clear_caches()
+        gc.collect()
 
     def test_with_drive_approx(self):
         """Test that a HardwareHamiltonian only containing a drive is differentiated
@@ -1708,6 +1765,7 @@ class TestStochPulseGradIntegration:
         exact = jax.grad(cost_jax)(params)
         assert qml.math.allclose(res, exact, atol=1e-3)
         jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_params", [1, 2])
     def test_with_two_drives(self, num_params):
@@ -1751,6 +1809,7 @@ class TestStochPulseGradIntegration:
         exact = jax.grad(cost_jax)(params)
         assert qml.math.allclose(res, exact, atol=1e-3)
         jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -1785,3 +1844,5 @@ class TestStochPulseGradDiff:
         exp_diff_of_grad = -4 * jnp.cos(2 * p) * T**2
         diff_of_grad = jax.grad(fun)(params)
         assert qml.math.isclose(diff_of_grad, exp_diff_of_grad)
+        jax.clear_caches()
+        gc.collect()

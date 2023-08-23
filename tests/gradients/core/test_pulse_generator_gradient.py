@@ -15,7 +15,7 @@
 Tests for the gradients.pulse_generator module.
 """
 # pylint:disable=import-outside-toplevel
-
+import gc
 import copy
 import pytest
 import numpy as np
@@ -86,6 +86,8 @@ class TestOneParameterGenerators:
         # given by the duration of the constant pulse.
         expected = -1j * T * term.matrix()
         assert qml.math.allclose(gen, expected)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize(
         "terms",
@@ -130,6 +132,8 @@ class TestOneParameterGenerators:
             assert gen.shape == (dim, dim)
             expected = -1j * T * expand_matrix(term.matrix(), term.wires, H.wires)
             assert qml.math.allclose(gen, expected)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize(
         "terms",
@@ -181,6 +185,8 @@ class TestOneParameterGenerators:
             # The effective generator should have the shape of the pulse
             assert gen.shape == (dim, dim)
             assert qml.math.allclose(gen, expec)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("term", [X(0), Y("a") @ X(3)])
     @pytest.mark.parametrize("t", ([0.3, 0.4], [-0.1, 0.1]))
@@ -211,6 +217,8 @@ class TestOneParameterGenerators:
         # the Hamiltonian term yields the Jacobian of the pulse
         expected = jnp.tensordot(par_fn_jac, -1j * term.matrix(), axes=0)
         assert qml.math.allclose(gen, expected)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize(
         "terms",
@@ -259,6 +267,8 @@ class TestOneParameterGenerators:
                 jac, -1j * expand_matrix(term.matrix(), term.wires, H.wires), axes=0
             )
             assert qml.math.allclose(gen, expected)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.slow
     @pytest.mark.parametrize(
@@ -323,6 +333,8 @@ class TestOneParameterGenerators:
             # as many as values in the respective parameter
             assert gen.shape == (len(p), dim, dim)
             assert qml.math.allclose(gen, expec, atol=1e-6)
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -338,6 +350,7 @@ class TestOneParameterPauliRotCoeffs:
         """Test that the output for a skew-Hermitian input is real-valued
         and has the correct shape(s)."""
         import jax.numpy as jnp
+        import jax
 
         r_dtype, c_dtype = getattr(jnp, r_dtype), getattr(jnp, c_dtype)
         dim = 2**num_wires
@@ -351,11 +364,15 @@ class TestOneParameterPauliRotCoeffs:
         assert len(coeffs) == len(pardims)
         assert all(c.shape == (4**num_wires - 1, *pardim) for c, pardim in zip(coeffs, pardims))
         assert all(c.dtype == r_dtype for c in coeffs)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_wires", [1, 2, 3])
     def test_with_pauli_basis(self, num_wires):
         """Test that the generators of all possible ``PauliRot`` gates are correctly decomposed
         into canonical basis vectors as coefficients."""
+        import jax
+
         # generators of PauliRot
         paulirot_gens = -0.5j * pauli_basis_matrices(num_wires)
         # With many entries, each containing one basis element
@@ -364,6 +381,8 @@ class TestOneParameterPauliRotCoeffs:
         # With a "single entry" containing all basis elements
         paulirot_coeffs = _one_parameter_paulirot_coeffs([paulirot_gens], num_wires)
         assert qml.math.allclose(paulirot_coeffs, np.eye(4**num_wires - 1))
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -373,6 +392,8 @@ class TestNonzeroCoeffsAndWords:
     @pytest.mark.parametrize("num_wires", [1, 2, 3])
     def test_all_zero(self, num_wires):
         """Test that no coefficients and words are returned when all coefficients vanish."""
+        import jax
+
         dim = 4**num_wires - 1
         shapes = [(dim, 3), (dim,), (dim, 2, 5)]
         # Generate zero coefficients only
@@ -383,11 +404,15 @@ class TestNonzeroCoeffsAndWords:
         assert new_coeffs == [[], [], []]
         # There should be an empty list of Pauli words left.
         assert words == []
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_wires", [1, 2, 3])
     def test_separate_nonzero(self, num_wires):
         """Test that a single coefficient in any of the coefficients is sufficient
         to keep the Pauli word in the filter."""
+        import jax
+
         # Create many coefficients, each greater or equal ``1`` at distinct places.
         rng = np.random.default_rng(42)
         coeffs = tuple(rng.uniform(1, 2, size=(4**num_wires - 1, 4**num_wires - 1)))
@@ -398,11 +423,15 @@ class TestNonzeroCoeffsAndWords:
         assert len(words) == 4**num_wires - 1
         # Also check that the order of the words is consistent.
         assert all(w == exp for w, exp in zip(words, pauli_basis_strings(num_wires)))
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize(
         "num_wires, remove_ids", [(1, [0]), (1, [2]), (2, [0, 3]), (2, [0, 1, 2, 3]), (2, [10])]
     )
     def test_single_zeros(self, num_wires, remove_ids):
+        import jax
+
         """Test that a removing single entries/Pauli words leads to the corresponding
         rows in the coefficients being skipped."""
         dim = 4**num_wires - 1
@@ -427,9 +456,13 @@ class TestNonzeroCoeffsAndWords:
         assert all(qml.math.allclose(nc, c) for nc, c in zip(new_coeffs, exp_coeffs))
         assert len(words) == 4**num_wires - 1 - len(remove_ids)
         assert all(w == exp for w, exp in zip(words, exp_words))
+        jax.clear_caches()
+        gc.collect()
 
     def test_atol(self):
         """Test that the precision keyword argument atol is used correctly."""
+        import jax
+
         atols = [1e-8, 1e-4, 1e-1]
         # With the following coefficients, different rows will be considered to vanish
         # for the different tolerances set above.
@@ -442,6 +475,8 @@ class TestNonzeroCoeffsAndWords:
         new_coeffs, words = _nonzero_coeffs_and_words(coeffs, 1, atol=1.0)
         assert new_coeffs == [[], []]
         assert words == []
+        jax.clear_caches()
+        gc.collect()
 
 
 all_ops_and_meas = [
@@ -472,6 +507,8 @@ class TestInsertOp:
     @pytest.mark.parametrize("ops", all_ops)
     def test_output_properties(self, ops_and_meas, op_idx, ops):
         """Test that the input tape and inserted ops are taken into account correctly."""
+        import jax
+
         evolve_op = qml.evolve(qml.pulse.constant * Z("a"))([np.array(0.2)], 0.2)
         operations, measurements = ops_and_meas
         operations = [evolve_op if op == "evolve_op" else op for op in operations]
@@ -482,6 +519,8 @@ class TestInsertOp:
             assert all(qml.equal(o0, o1) for o0, o1 in zip(t[:op_idx], tape[:op_idx]))
             assert qml.equal(t[op_idx], op)
             assert all(qml.equal(o0, o1) for o0, o1 in zip(t[op_idx + 1 :], tape[op_idx:]))
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -498,6 +537,8 @@ class TestGenerateTapesAndCoeffs:
 
     def check_cache_equality(self, cache, expected):
         """Check that a cache equals an expected cache."""
+        import jax
+
         assert list(cache.keys()) == list(expected.keys())
         # "total_num_tapes" always is a key in the caches
         assert cache["total_num_tapes"] == expected["total_num_tapes"]
@@ -515,10 +556,13 @@ class TestGenerateTapesAndCoeffs:
             # (the tuple axis) and compare the tensors one after the other
             for _v, e in zip(v[2], expected_value[2]):
                 assert qml.math.allclose(_v, e, atol=self.atol)
+        jax.clear_caches()
+        gc.collect()
 
     def check_tapes_and_coeffs_equality(self, grad_tapes, tup, expected):
         """Check that generated tapes and coefficients equal the expectation."""
         import jax.numpy as jnp
+        import jax
 
         start, end, num_tapes, words, wires, old_tape, insert_idx, exp_coeffs = expected
         assert len(grad_tapes) == num_tapes
@@ -535,6 +579,8 @@ class TestGenerateTapesAndCoeffs:
         assert isinstance(coeffs, list) and len(coeffs) == len(exp_coeffs)
         assert isinstance(coeffs[0], jnp.ndarray) and coeffs[0].shape == exp_coeffs[0].shape
         assert qml.math.allclose(coeffs[0], exp_coeffs[0], atol=self.atol)
+        jax.clear_caches()
+        gc.collect()
 
     def test_raises_non_pulse_op(self):
         """Test that an error is raised for an operation that is not a pulse."""
@@ -547,6 +593,7 @@ class TestGenerateTapesAndCoeffs:
     def test_single_op_single_term(self, add_constant):
         """Test the tape generation for a single parameter and Hamiltonian term in a tape."""
         import jax.numpy as jnp
+        import jax
 
         H = qml.pulse.constant * X(0)
         if add_constant:
@@ -572,6 +619,8 @@ class TestGenerateTapesAndCoeffs:
 
         self.check_tapes_and_coeffs_equality(grad_tapes, (start, end, coeffs), expected)
         self.check_cache_equality(cache, exp_cache)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("same_terms", [False, True])
     def test_single_op_multi_term(self, same_terms):
@@ -623,6 +672,8 @@ class TestGenerateTapesAndCoeffs:
 
         self.check_tapes_and_coeffs_equality(grad_tapes, (start, end, coeffs), expected)
         self.check_cache_equality(cache, exp_cache)
+        jax.clear_caches()
+        gc.collect()
 
     def test_multi_op_multi_term(self):
         """Test the tape generation for multiple parameters of multiple Hamiltonians in a tape."""
@@ -702,6 +753,8 @@ class TestGenerateTapesAndCoeffs:
 
         self.check_tapes_and_coeffs_equality(grad_tapes, (start, end, coeffs), expected)
         self.check_cache_equality(cache, exp_cache)
+        jax.clear_caches()
+        gc.collect()
 
 
 class TestParshiftAndContract:
@@ -711,6 +764,8 @@ class TestParshiftAndContract:
     @pytest.mark.parametrize("num_out", [1, 4])
     def test_single_measure_no_shot_vector(self, num_params, num_out):
         """Test _parshift_and_contract with a single measurement without shot vector."""
+        import jax
+
         values = np.arange(1, num_params + 1)
         # Emulate results to be [1.2*value, -0.42*value], leading to the expected PSR
         # derivative 0.81*value
@@ -723,12 +778,16 @@ class TestParshiftAndContract:
         assert output.shape == (num_out,)
         expected = 0.81 * values @ np.stack(coeffs)
         assert qml.math.allclose(output, expected)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_params", [1, 3])
     @pytest.mark.parametrize("num_out", [1, 4])
     @pytest.mark.parametrize("len_shot_vector", [1, 2, 3])
     def test_single_measure_with_shot_vector(self, num_params, num_out, len_shot_vector):
         """Test _parshift_and_contract with a single measurement with shot vector."""
+        import jax
+
         values = np.arange(1, num_params + 1)
         shot_factors = np.random.random(len_shot_vector)
         # Emulate results to be [1.2*value, -0.42*value], leading to the expected PSR
@@ -744,12 +803,16 @@ class TestParshiftAndContract:
         assert all(x.shape == (num_out,) for x in output)
         expected = np.outer(shot_factors, 0.81 * values @ np.stack(coeffs))
         assert qml.math.allclose(output, expected)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_params", [1, 3])
     @pytest.mark.parametrize("num_out", [1, 4])
     @pytest.mark.parametrize("num_measurements", [2, 3])
     def test_multi_measure_no_shot_vector(self, num_params, num_out, num_measurements):
         """Test _parshift_and_contract with multiple measurements without shot vector."""
+        import jax
+
         values = np.arange(1, num_params + 1)
         meas_factors = np.random.random(num_measurements)
         # Emulate results to be [1.2*value, -0.42*value], leading to the expected PSR
@@ -766,6 +829,8 @@ class TestParshiftAndContract:
         assert all(x.shape == (num_out,) for x in output)
         expected = np.outer(meas_factors, 0.81 * values @ np.stack(coeffs))
         assert qml.math.allclose(output, expected)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("num_params", [1, 3])
     @pytest.mark.parametrize("num_out", [1, 4])
@@ -775,6 +840,8 @@ class TestParshiftAndContract:
         self, num_params, num_out, num_measurements, len_shot_vector
     ):
         """Test _parshift_and_contract with multiple measurements without shot vector."""
+        import jax
+
         values = np.arange(1, num_params + 1)
         meas_factors = np.random.random(num_measurements)
         shot_factors = np.random.random(len_shot_vector)
@@ -796,6 +863,8 @@ class TestParshiftAndContract:
             assert all(y.shape == (num_out,) for y in x)
             expected = np.tensordot(factors, 0.81 * values @ np.stack(coeffs), axes=0)
             assert qml.math.allclose(output, expected)
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -833,6 +902,8 @@ class TestPulseGeneratorEdgeCases:
     def test_no_trainable_params_tape(self):
         """Test that the correct ouput and warning is generated in the absence of any trainable
         parameters"""
+        import jax
+
         dev = qml.device("default.qubit", wires=2)
 
         weights = [0.1, 0.2]
@@ -852,10 +923,14 @@ class TestPulseGeneratorEdgeCases:
         assert g_tapes == []
         assert isinstance(res, np.ndarray)
         assert res.shape == (0,)
+        jax.clear_caches()
+        gc.collect()
 
     def test_no_trainable_params_multiple_return_tape(self):
         """Test that the correct ouput and warning is generated in the absence of any trainable
         parameters with multiple returns."""
+        import jax
+
         dev = qml.device("default.qubit", wires=2)
 
         weights = [0.1, 0.2]
@@ -877,10 +952,14 @@ class TestPulseGeneratorEdgeCases:
         for r in res:
             assert isinstance(r, np.ndarray)
             assert r.shape == (0,)
+        jax.clear_caches()
+        gc.collect()
 
     def test_all_zero_diff_methods_tape(self):
         """Test that the transform works correctly when the diff method for every parameter is
         identified to be 0, and that no tapes were generated."""
+        import jax
+
         dev = qml.device("default.qubit", wires=3)
 
         params = pnp.array([0.5, 0.5, 0.5], requires_grad=True)
@@ -910,10 +989,13 @@ class TestPulseGeneratorEdgeCases:
         assert isinstance(res_pulse_gen[2], np.ndarray)
         assert res_pulse_gen[2].shape == (4,)
         assert np.allclose(res_pulse_gen[2], 0)
+        jax.clear_caches()
+        gc.collect()
 
     def test_all_zero_diff_methods_multiple_returns_tape(self):
         """Test that the transform works correctly when the diff method for every parameter is
         identified to be 0, and that no tapes were generated."""
+        import jax
 
         dev = qml.device("default.qubit", wires=3)
 
@@ -963,6 +1045,8 @@ class TestPulseGeneratorEdgeCases:
         assert isinstance(res_pulse_gen[1][2], np.ndarray)
         assert res_pulse_gen[1][2].shape == (4,)
         assert np.allclose(res_pulse_gen[1][2], 0)
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -1002,6 +1086,8 @@ class TestPulseGeneratorTape:
         else:
             assert isinstance(grad, jnp.ndarray) and grad.shape == x.shape
             assert qml.math.allclose(grad, exp_grad, atol=tol)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.slow
     @pytest.mark.parametrize("shots, tol", [(None, 1e-7), ([1000, 100], 0.05)])
@@ -1043,6 +1129,8 @@ class TestPulseGeneratorTape:
         else:
             assert isinstance(grad, tuple) and len(grad) == 2
             assert all(qml.math.allclose(g, e, atol=tol) for g, e in zip(grad, exp_grad))
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("argnum", (0, [0], 1, [1]))
     def test_single_pulse_multi_term_argnum(self, argnum):
@@ -1082,6 +1170,8 @@ class TestPulseGeneratorTape:
         argnum_int = argnum if isinstance(argnum, int) else argnum[0]
         assert qml.math.allclose(grad[argnum_int], exp_grads[argnum_int])
         assert qml.math.allclose(grad[1 - argnum_int], 0.0)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.slow
     @pytest.mark.parametrize("shots, tol", [(None, 1e-7), ([1000, 100], 0.05)])
@@ -1126,6 +1216,8 @@ class TestPulseGeneratorTape:
         else:
             assert isinstance(grad, tuple) and len(grad) == 3
             assert all(qml.math.allclose(g, e, atol=tol) for g, e in zip(grad, exp_grad))
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -1174,6 +1266,8 @@ class TestPulseGeneratorQNode:
         exp_grad = -2 * jnp.sin(2 * p) * T
         assert jnp.allclose(grad, exp_grad)
         assert tracker.totals["executions"] == 2  # two shifted tapes
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.skip("Applying this gradient transform to QNodes directly is not supported.")
     def test_qnode_expval_probs_single_par(self):
@@ -1206,6 +1300,8 @@ class TestPulseGeneratorQNode:
         )
         for j, e in zip(jac, exp_jac):
             assert qml.math.allclose(j, e)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.skip("Applying this gradient transform to QNodes directly is not supported.")
     def test_qnode_probs_expval_multi_par(self):
@@ -1245,6 +1341,8 @@ class TestPulseGeneratorQNode:
         for j, e in zip(jac, exp_jac):
             for _j, _e in zip(j, e):
                 assert qml.math.allclose(_j, _e)
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -1274,6 +1372,8 @@ class TestPulseGeneratorIntegration:
         exp_grad = -2 * jnp.sin(2 * p) * T
         assert qml.math.allclose(grad, exp_grad)
         assert tracker.totals["executions"] == 1 + 2  # one forward pass, two shifted tapes
+        jax.clear_caches()
+        gc.collect()
 
     def test_simple_qnode_expval_two_evolves(self):
         """Test that a simple qnode that returns an expectation value
@@ -1300,6 +1400,8 @@ class TestPulseGeneratorIntegration:
         p_y = params[1][0] * T_y
         exp_grad = [[-2 * jnp.sin(2 * (p_x + p_y)) * T_x], [-2 * jnp.sin(2 * (p_x + p_y)) * T_y]]
         assert qml.math.allclose(grad, exp_grad)
+        jax.clear_caches()
+        gc.collect()
 
     def test_simple_qnode_probs(self):
         """Test that a simple qnode that returns probabilities
@@ -1322,6 +1424,8 @@ class TestPulseGeneratorIntegration:
         p = params[0] * T
         exp_jac = jnp.array([-1, 1]) * jnp.sin(2 * p) * T
         assert qml.math.allclose(jac, exp_jac)
+        jax.clear_caches()
+        gc.collect()
 
     def test_simple_qnode_probs_expval(self):
         """Test that a simple qnode that returns probabilities
@@ -1349,6 +1453,8 @@ class TestPulseGeneratorIntegration:
         )
         for j, e in zip(jac, exp_jac):
             assert qml.math.allclose(j[0], e)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.xfail
     @pytest.mark.parametrize("time_interface", ["python", "numpy", "jax"])
@@ -1372,6 +1478,8 @@ class TestPulseGeneratorIntegration:
         exp_grad = -2 * jnp.sin(2 * p) * T
         jit_grad = jax.jit(jax.grad(circuit))(params, T=T)
         assert qml.math.isclose(jit_grad, exp_grad)
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.slow
     def test_advanced_qnode(self):
@@ -1408,6 +1516,8 @@ class TestPulseGeneratorIntegration:
         assert all(
             qml.math.allclose(r, e, atol=1e-7) for r, e in zip(grad_pulse_grad, grad_backprop)
         )
+        jax.clear_caches()
+        gc.collect()
 
     @pytest.mark.parametrize("argnums", [[0, 1], 0, 1])
     def test_simple_qnode_expval_multiple_params(self, argnums):
@@ -1440,6 +1550,8 @@ class TestPulseGeneratorIntegration:
         else:
             assert qml.math.allclose(grad, exp_grad)
             assert tracker.totals["executions"] == 1 + 2  # one forward pass, two shifted tapes
+        jax.clear_caches()
+        gc.collect()
 
 
 @pytest.mark.jax
@@ -1477,3 +1589,5 @@ class TestPulseGeneratorDiff:
         exp_diff_of_grad = -4 * jnp.cos(2 * p) * T**2
         diff_of_grad = jax.grad(fun)(params)
         assert qml.math.isclose(diff_of_grad, exp_diff_of_grad)
+        jax.clear_caches()
+        gc.collect()
