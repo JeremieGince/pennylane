@@ -825,6 +825,17 @@ class TestHamiltonian:
         assert H2.compare(qml.GellMann(wires=2, index=2) @ qml.GellMann(wires=1, index=2)) is False
         assert H2.compare(H4) is False
 
+    def test_compare_doesnt_mutate_hamiltonian(self):
+        """Test that comparing two Hamiltonians does not mutate them."""
+        H1 = qml.Hamiltonian([0.1, 0.2, 0.3], [qml.PauliZ(0), qml.PauliZ(0), qml.PauliZ(0)])
+        H2 = qml.Hamiltonian([0.3, 0.3], [qml.PauliZ(0), qml.PauliZ(0)])
+
+        assert H1.compare(H2)
+        assert np.allclose(H1.data, [0.1, 0.2, 0.3])
+        assert np.allclose(H2.data, [0.3, 0.3])
+        assert len(H1.ops) == 3
+        assert len(H2.ops) == 2
+
     def test_hamiltonian_equal_error(self):
         """Tests that the correct error is raised when compare() is called on invalid type"""
 
