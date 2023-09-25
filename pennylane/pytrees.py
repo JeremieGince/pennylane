@@ -104,6 +104,7 @@ class Structure(NamedTuple):
     node_type: type
     node_metadata: Tuple
     child_structures: Tuple["Structure"]
+    unflatten_fn: UnflattenFn
 
     def __repr__(self):
         rep = f"Tree({self.node_type.__name__}, {self.node_metadata})\n\t"
@@ -139,7 +140,9 @@ def flatten(op):
             flattened_leaves.append(l)
             child_structures.append(leaf)
 
-    structure = Structure(type(op), metadata, tuple(child_structures))
+    unflatten_fn = unflatten_registrations[type(op)]
+
+    structure = Structure(type(op), metadata, tuple(child_structures), unflatten_fn)
     return flattened_leaves, structure
 
 
@@ -151,4 +154,4 @@ def _unflatten(new_data, structure):
     if isinstance(structure, Leaf):
         return next(new_data)
     children = tuple(_unflatten(new_data, s) for s in structure.child_structures)
-    return unflatten_registrations[structure.node_type](children, structure.node_metadata)
+    return structure.unflatten_fn(children, structure.node_metadata)
