@@ -24,12 +24,9 @@ import pennylane as qml
 from pennylane.typing import TensorLike
 from pennylane.operation import Operator, Tensor
 
-from ..identity import Identity
-from ..qubit import Projector
-from ..op_math import CompositeOp, SymbolicOp, ScalarSymbolicOp, Adjoint, Pow, SProd
+from pennylane.pytrees import flatten, unflatten
 
 
-@singledispatch
 def bind_new_parameters(op: Operator, params: Sequence[TensorLike]) -> Operator:
     """Create a new operator with updated parameters
 
@@ -45,142 +42,5 @@ def bind_new_parameters(op: Operator, params: Sequence[TensorLike]) -> Operator:
     Returns:
         .Operator: New operator with updated parameters
     """
-    try:
-        return op.__class__(*params, wires=op.wires, **copy.deepcopy(op.hyperparameters))
-    except (TypeError, ValueError):
-        # operation is doing something different with its call signature.
-        new_op = copy.deepcopy(op)
-        new_op.data = tuple(params)
-        return new_op
-
-
-@bind_new_parameters.register
-def bind_new_parameters_approx_time_evolution(
-    op: qml.ApproxTimeEvolution, params: Sequence[TensorLike]
-):
-    new_hamiltonian = bind_new_parameters(op.hyperparameters["hamiltonian"], params[:-1])
-    time = params[-1]
-    n = op.hyperparameters["n"]
-
-    return qml.ApproxTimeEvolution(new_hamiltonian, time, n)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_commuting_evolution(
-    op: qml.CommutingEvolution, params: Sequence[TensorLike]
-):
-    new_hamiltonian = bind_new_parameters(op.hyperparameters["hamiltonian"], params[1:])
-    freq = op.hyperparameters["frequencies"]
-    shifts = op.hyperparameters["shifts"]
-    time = params[0]
-
-    return qml.CommutingEvolution(new_hamiltonian, time, frequencies=freq, shifts=shifts)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_fermionic_double_excitation(
-    op: qml.FermionicDoubleExcitation, params: Sequence[TensorLike]
-):
-    wires1 = op.hyperparameters["wires1"]
-    wires2 = op.hyperparameters["wires2"]
-
-    return qml.FermionicDoubleExcitation(params[0], wires1=wires1, wires2=wires2)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_angle_embedding(op: qml.AngleEmbedding, params: Sequence[TensorLike]):
-    rotation = op.hyperparameters["rotation"].basis
-    return qml.AngleEmbedding(params[0], wires=op.wires, rotation=rotation)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_identity(op: Identity, params: Sequence[TensorLike]):
-    return qml.Identity(*params, wires=op.wires)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_composite_op(op: CompositeOp, params: Sequence[TensorLike]):
-    new_operands = []
-
-    for operand in op.operands:
-        op_num_params = operand.num_params
-        sub_params = params[:op_num_params]
-        params = params[op_num_params:]
-        new_operands.append(bind_new_parameters(operand, sub_params))
-
-    return op.__class__(*new_operands)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_symbolic_op(op: SymbolicOp, params: Sequence[TensorLike]):
-    new_base = bind_new_parameters(op.base, params)
-    new_hyperparameters = copy.deepcopy(op.hyperparameters)
-    _ = new_hyperparameters.pop("base")
-
-    return op.__class__(new_base, **new_hyperparameters)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_adjoint(op: Adjoint, params: Sequence[TensorLike]):
-    # Need a separate dispatch for `Adjoint` because using a more general class
-    # signature results in a call to `Adjoint.__new__` which doesn't raise an
-    # error but does return an unusable object.
-    return Adjoint(bind_new_parameters(op.base, params))
-
-
-@bind_new_parameters.register
-def bind_new_parameters_projector(op: Projector, params: Sequence[TensorLike]):
-    # Need a separate dispatch for `Projector` because using a more general class
-    # signature results in a call to `Projector.__new__` which doesn't raise an
-    # error but does return an unusable object.
-    return Projector(*params, wires=op.wires)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_scalar_symbolic_op(op: ScalarSymbolicOp, params: Sequence[TensorLike]):
-    new_scalar = params[0]
-    params = params[1:]
-
-    new_base = bind_new_parameters(op.base, params)
-    new_hyperparameters = copy.deepcopy(op.hyperparameters)
-    _ = new_hyperparameters.pop("base")
-
-    return op.__class__(new_base, new_scalar, **new_hyperparameters)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_sprod(op: SProd, params: Sequence[TensorLike]):
-    # Separate dispatch for `SProd` since its constructor has a different interface
-    new_scalar = params[0]
-    params = params[1:]
-    new_base = bind_new_parameters(op.base, params)
-
-    return SProd(new_scalar, new_base)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_pow(op: Pow, params: Sequence[TensorLike]):
-    # Need a separate dispatch for `Pow` because using a more general class
-    # signature results in a call to `Pow.__new__` which doesn't raise an
-    # error but does return an unusable object.
-    return Pow(bind_new_parameters(op.base, params), op.scalar)
-
-
-@bind_new_parameters.register
-def bind_new_parameters_hamiltonian(op: qml.Hamiltonian, params: Sequence[TensorLike]):
-    new_H = qml.Hamiltonian(params, op.ops)
-    if op.grouping_indices is not None:
-        new_H.grouping_indices = op.grouping_indices
-    return new_H
-
-
-@bind_new_parameters.register
-def bind_new_parameters_tensor(op: Tensor, params: Sequence[TensorLike]):
-    new_obs = []
-
-    for obs in op.obs:
-        sub_params = params[: obs.num_params]
-        params = params[obs.num_params :]
-        new_obs.append(bind_new_parameters(obs, sub_params))
-
-    return Tensor(*new_obs)
+    _, structure = flatten(op)
+    return unflatten(params, structure)

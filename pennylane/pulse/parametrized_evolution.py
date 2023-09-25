@@ -570,16 +570,3 @@ class ParametrizedEvolution(Operation):
 
         p = ",".join(s for s in param_strings)
         return f"{op_label}\n(p=[{p}], t={self.t})"
-
-
-@functions.bind_new_parameters.register
-def _bind_new_parameters_parametrized_evol(op: ParametrizedEvolution, params: Sequence[TensorLike]):
-    return ParametrizedEvolution(
-        op.H,
-        params=params,
-        t=op.t,
-        return_intermediate=op.hyperparameters["return_intermediate"],
-        complementary=op.hyperparameters["complementary"],
-        dense=op.dense,
-        **op.odeint_kwargs,
-    )
