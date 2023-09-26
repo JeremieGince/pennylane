@@ -17,12 +17,15 @@ This module contains the qml.bind_new_parameters function.
 # pylint: disable=missing-docstring
 
 from typing import Sequence
-import copy
-from functools import singledispatch
 
-import pennylane as qml
+has_optree = True
+try:
+    import optree
+except ImportError:
+    has_optree = False
+
 from pennylane.typing import TensorLike
-from pennylane.operation import Operator, Tensor
+from pennylane.operation import Operator
 
 from pennylane.pytrees import flatten, unflatten
 
@@ -42,5 +45,8 @@ def bind_new_parameters(op: Operator, params: Sequence[TensorLike]) -> Operator:
     Returns:
         .Operator: New operator with updated parameters
     """
+    if has_optree:
+        _, structure = optree.tree_flatten(op, namespace="qml")
+        return optree.tree_unflatten(structure, params)
     _, structure = flatten(op)
     return unflatten(params, structure)

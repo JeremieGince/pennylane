@@ -114,13 +114,7 @@ class Structure(NamedTuple):
 
 class Leaf:
     def __repr__(self):
-        return "Leaf"
-
-    def __eq__(self, other):
-        return type(other) is Leaf
-
-    def __hash__(self):
-        return hash(Leaf)
+        return f"Leaf{id(self)}"
 
 
 leaf = Leaf()
@@ -138,7 +132,7 @@ def flatten(op):
             child_structures.append(child_structure)
         else:
             flattened_leaves.append(l)
-            child_structures.append(leaf)
+            child_structures.append(Leaf())
 
     unflatten_fn = unflatten_registrations[type(op)]
 
