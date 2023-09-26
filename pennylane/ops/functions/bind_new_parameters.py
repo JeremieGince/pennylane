@@ -18,12 +18,6 @@ This module contains the qml.bind_new_parameters function.
 
 from typing import Sequence
 
-has_optree = True
-try:
-    import optree
-except ImportError:
-    has_optree = False
-
 from pennylane.typing import TensorLike
 from pennylane.operation import Operator
 
@@ -45,8 +39,5 @@ def bind_new_parameters(op: Operator, params: Sequence[TensorLike]) -> Operator:
     Returns:
         .Operator: New operator with updated parameters
     """
-    if has_optree:
-        _, structure = optree.tree_flatten(op, namespace="qml")
-        return optree.tree_unflatten(structure, params)
     _, structure = flatten(op)
     return unflatten(params, structure)
