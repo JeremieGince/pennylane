@@ -23,7 +23,7 @@ import warnings
 
 import pennylane as qml
 from pennylane import Snapshot
-from pennylane.operation import Tensor, StatePrepBase
+from pennylane.operation import Tensor
 from pennylane.measurements import (
     MidMeasureMP,
     StateMeasurement,
@@ -62,20 +62,6 @@ _observables = {
 
 
 ### UTILITY FUNCTIONS FOR EXPANDING UNSUPPORTED OPERATIONS ###
-
-
-def _accepted_operator(op: qml.operation.Operator) -> bool:
-    """Specify whether or not an Operator object is supported by the device."""
-    if op.name == "QFT" and len(op.wires) >= 6:
-        return False
-    if op.name == "GroverOperator" and len(op.wires) >= 13:
-        return False
-    if op.name == "Snapshot":
-        return True
-    if op.__class__.__name__ == "Pow" and qml.operation.is_trainable(op):
-        return False
-
-    return op.has_matrix
 
 
 def _accepted_adjoint_operator(op: qml.operation.Operator) -> bool:
@@ -359,23 +345,6 @@ def expand_fn(tape: qml.tape.QuantumTape) -> (Sequence[qml.tape.QuantumTape], Ca
     if any(isinstance(o, MidMeasureMP) for o in tape.operations):
         tapes, _ = qml.defer_measurements(tape)
         tape = tapes[0]
-
-    if not all(_accepted_operator(op) for op in tape.operations):
-        try:
-            # don't decompose initial operations if its StatePrepBase
-            prep_op = [tape[0]] if isinstance(tape[0], StatePrepBase) else []
-
-            new_ops = [
-                final_op
-                for op in tape.operations[bool(prep_op) :]
-                for final_op in _operator_decomposition_gen(op, _accepted_operator)
-            ]
-        except RecursionError as e:
-            raise DeviceError(
-                "Reached recursion limit trying to decompose operations. "
-                "Operator decomposition may have entered an infinite loop."
-            ) from e
-        tape = qml.tape.QuantumScript(prep_op + new_ops, tape.measurements, shots=tape.shots)
 
     for observable in tape.observables:
         if isinstance(observable, Tensor):

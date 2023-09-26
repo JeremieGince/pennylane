@@ -45,6 +45,20 @@ QuantumTape_or_Batch = Union[QuantumTape, QuantumTapeBatch]
 PostprocessingFn = Callable[[ResultBatch], Result_or_ResultBatch]
 
 
+def accepted_operator(op: qml.operation.Operator) -> bool:
+    """Specify whether or not an Operator object is supported by the device."""
+    if op.name == "QFT" and len(op.wires) >= 6:
+        return False
+    if op.name == "GroverOperator" and len(op.wires) >= 13:
+        return False
+    if op.name == "Snapshot":
+        return True
+    if op.__class__.__name__ == "Pow" and qml.operation.is_trainable(op):
+        return False
+
+    return op.has_matrix
+
+
 class DefaultQubit(Device):
     """A PennyLane device written in Python and capable of backpropagation derivatives.
 
@@ -256,6 +270,9 @@ class DefaultQubit(Device):
         transform_program = TransformProgram()
         # Validate device wires
         transform_program.add_transform(validate_device_wires, self)
+        transform_program.add_transform(
+            qml.transforms.decompose, stop_at=accepted_operator, skip_initial_state_prep=True
+        )
 
         # Validate multi processing
         max_workers = execution_config.device_options.get("max_workers", self._max_workers)

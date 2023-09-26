@@ -1239,8 +1239,8 @@ class Operator(abc.ABC):
             *self.parameters, wires=self.wires, **self.hyperparameters
         )
 
-    @staticmethod
-    def compute_decomposition(*params, wires=None, **hyperparameters):
+    @classmethod
+    def compute_decomposition(cls, *params, wires=None, **hyperparameters):
         r"""Representation of the operator as a product of other operators (static method).
 
         .. math:: O = O_1 O_2 \dots O_n.
@@ -1260,7 +1260,7 @@ class Operator(abc.ABC):
         Returns:
             list[Operator]: decomposition of the operator
         """
-        raise DecompositionUndefinedError
+        raise DecompositionUndefinedError(f"{cls.__name__} has no decomposition.")
 
     # pylint: disable=no-self-argument, comparison-with-callable
     @classproperty

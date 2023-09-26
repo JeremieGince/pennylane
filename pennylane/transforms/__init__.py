@@ -62,6 +62,7 @@ This set of transforms accept quantum functions, and perform basic circuit compi
     :toctree: api
 
     ~compile
+    ~transforms.decompose
     ~transforms.cancel_inverses
     ~transforms.commute_controlled
     ~transforms.merge_rotations
@@ -213,6 +214,7 @@ from .classical_jacobian import classical_jacobian
 from .condition import cond, Conditional
 from .convert_to_numpy_parameters import convert_to_numpy_parameters
 from .compile import compile
+from .decompose import decompose
 from .decompositions import (
     one_qubit_decomposition,
     two_qubit_decomposition,
