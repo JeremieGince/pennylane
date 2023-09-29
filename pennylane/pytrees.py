@@ -14,8 +14,8 @@
 """
 An internal module for working with pytrees.
 """
-
-from typing import Callable, Tuple, Any, NamedTuple
+from collections import namedtuple
+from typing import Callable, Tuple, Any, List, Union
 
 has_jax = True
 try:
@@ -35,15 +35,42 @@ Metadata = Any
 FlattenFn = Callable[[Any], Tuple[Leaves, Metadata]]
 UnflattenFn = Callable[[Leaves, Metadata], Any]
 
+
+def flatten_list(obj):
+    return obj, None
+
+
+def flatten_tuple(obj):
+    return obj, None
+
+
+def flatten_dict(obj):
+    return obj.values(), obj.keys()
+
+
 flatten_registrations = {
-    list: (lambda obj: (obj, None)),
-    tuple: (lambda obj: (obj, None)),
-    dict: (lambda obj: (obj.values(), obj.keys())),
+    list: flatten_list,
+    tuple: flatten_tuple,
+    dict: flatten_dict,
 }
+
+
+def unflatten_list(data, _):
+    return data if isinstance(data, list) else list(data)
+
+
+def unflatten_tuple(data, _):
+    return tuple(data)
+
+
+def unflatten_dict(data, metadata):
+    return dict(zip(metadata, data))
+
+
 unflatten_registrations = {
-    list: (lambda data, _: list(data)),
-    tuple: (lambda data, _: tuple(data)),
-    dict: (lambda data, metadata: dict(zip(metadata, data))),
+    list: unflatten_list,
+    tuple: unflatten_tuple,
+    dict: unflatten_dict,
 }
 
 
@@ -77,7 +104,8 @@ def _register_pytree_with_optree(
 def register_pytree(pytree_type: type, flatten_fn: FlattenFn, unflatten_fn: UnflattenFn):
     """Register a type with all available pytree backends.
 
-    Current backends is jax.
+    Current backends are pennylane, jax, and optree.
+
     Args:
         pytree_type (type): the type to register, such as ``qml.RX``
         flatten_fn (Callable): a function that splits an object into trainable leaves and hashable metadata.
@@ -100,52 +128,83 @@ def register_pytree(pytree_type: type, flatten_fn: FlattenFn, unflatten_fn: Unfl
         _register_pytree_with_optree(pytree_type, flatten_fn, unflatten_fn)
 
 
-class Structure(NamedTuple):
-    node_type: type
-    node_metadata: Tuple
-    child_structures: Tuple["Structure"]
-    unflatten_fn: UnflattenFn
-
+class Structure(namedtuple("Structure", ["type", "metadata", "children"])):
     def __repr__(self):
-        rep = f"Tree({self.node_type.__name__}, {self.node_metadata})\n\t"
-        rep += "\n\t".join(repr(s) for s in self.child_structures)
-        return rep
+        return f"PyTree({self.type.__name__}, {self.metadata}), {self.children})"
 
 
 class Leaf:
+    """A terminal node in a pytree."""
+
     def __repr__(self):
-        return f"Leaf{id(self)}"
+        return "Leaf"
+
+    def __eq__(self, other):
+        return isinstance(other, Leaf)
+
+    def __hash__(self):
+        return hash(Leaf)
 
 
 leaf = Leaf()
 
 
-def flatten(op):
-    leaves, metadata = flatten_registrations[type(op)](op)
+
+def tree_flatten(obj) -> Tuple[List[Any], Union[Structure, Leaf]]:
+    """Flattens a pytree into leaves and a structure.
+
+    Args:
+        obj (Any): any object
+
+    Returns:
+        List[Any], Union[Structure, Leaf]: a list of leaves and a structure representing the object
+
+    >>> op = qml.adjoint(qml.Rot(1.2, 2.3, 3.4, wires=0))
+    >>> data, structure = flatten(op)
+    >>> data
+    [1.2, 2.3, 3.4]
+    >>> structure
+    <Tree(AdjointOperation, (), (<Tree(Rot, (<Wires = [0]>, ()), (Leaf, Leaf, Leaf))>,))>
+
+    See also :function:`~.pytrees.unflatten`.
+
+    """
+    flatten_fn = flatten_registrations.get(type(obj), None)
+    if flatten_fn is None:
+        return [obj], leaf
+    leaves, metadata = flatten_fn(obj)
 
     flattened_leaves = []
     child_structures = []
     for l in leaves:
-        if type(l) in flatten_registrations:
-            child_leaves, child_structure = flatten(l)
-            flattened_leaves += child_leaves
-            child_structures.append(child_structure)
-        else:
-            flattened_leaves.append(l)
-            child_structures.append(Leaf())
+        child_leaves, child_structure = tree_flatten(l)
+        flattened_leaves += child_leaves
+        child_structures.append(child_structure)
 
-    unflatten_fn = unflatten_registrations[type(op)]
-
-    structure = Structure(type(op), metadata, tuple(child_structures), unflatten_fn)
+    structure = Structure(type(obj), metadata, child_structures)
     return flattened_leaves, structure
 
 
-def unflatten(new_data, structure):
-    return _unflatten(iter(new_data), structure)
+def tree_leaves(obj: Any) -> List[Any]:
+    """ """
+    data, _ = flatten_registrations[type(obj)](obj)
+
+    flattened_leaves = []
+    for l in data:
+        if type(l) in flatten_registrations:
+            flattened_leaves.extend(leaves(l))
+        else:
+            flattened_leaves.append(l)
+    return flattened_leaves
+
+
+def tree_unflatten(data, structure):
+    """Bind data to a structure to reconstru"""
+    return _unflatten(iter(data), structure)
 
 
 def _unflatten(new_data, structure):
     if isinstance(structure, Leaf):
         return next(new_data)
-    children = tuple(_unflatten(new_data, s) for s in structure.child_structures)
-    return structure.unflatten_fn(children, structure.node_metadata)
+    children = tuple(_unflatten(new_data, s) for s in structure[2])
+    return unflatten_registrations[structure[0]](children, structure[1])

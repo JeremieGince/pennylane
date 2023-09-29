@@ -36,11 +36,14 @@ from pennylane.tape import QuantumTape
 from pennylane.typing import ResultBatch
 
 from .set_shots import set_shots
+from .jacobian_products import TransformJacobianProducts, DeviceJacobians, DeviceJacobianProducts
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 device_type = Union[qml.Device, "qml.devices.Device"]
+
+jpc_interfaces = {"autograd", "jax"}
 
 INTERFACE_MAP = {
     None: "Numpy",
@@ -108,7 +111,7 @@ def _get_ml_boundary_execute(interface: str, grad_on_execution: bool) -> Callabl
     mapped_interface = INTERFACE_MAP[interface]
     try:
         if mapped_interface == "autograd":
-            from .autograd import execute as ml_boundary
+            from .autograd import autograd_execute as ml_boundary
 
         elif mapped_interface == "tf":
             import tensorflow as tf
@@ -408,6 +411,7 @@ def execute(
     expand_fn="device",  # type: ignore
     max_expansion=10,
     device_batch_transform=True,
+    use_device_jacobian_product=False,
 ) -> ResultBatch:
     """New function to execute a batch of tapes on a device in an autodifferentiable-compatible manner. More cases will be added,
     during the project. The current version is supporting forward execution for Numpy and does not support shot vectors.
@@ -541,6 +545,7 @@ def execute(
         for tape in tapes:
             params.extend(tape.get_parameters(trainable_only=False))
         interface = qml.math.get_interface(*params)
+    interface = "autograd" if interface == "numpy" else interface
     if interface == "jax":
         try:  # pragma: no-cover
             from .jax import get_jax_interface_name
@@ -594,8 +599,10 @@ def execute(
     def inner_execute_with_empty_jac(tapes, **_):
         return (inner_execute(tapes), [])
 
-    execute_fn = inner_execute_with_empty_jac
-
+    if interface in jpc_interfaces:
+        execute_fn = inner_execute
+    else:
+        execute_fn = inner_execute_with_empty_jac
     #### Executing the configured setup #####
 
     if isinstance(device, qml.devices.Device):
@@ -627,11 +634,20 @@ def execute(
 
     _grad_on_execution = False
 
-    if config.use_device_gradient:
+    if use_device_jacobian_product and config.use_device_jacobian_product:
+        jpc = DeviceJacobianProducts(device, config)
+
+    elif config.use_device_gradient:
+
+        jpc = DeviceJacobians(device, {}, config)
+
         # must be new device if this is specified as true
         _grad_on_execution = config.grad_on_execution
 
-        if config.grad_on_execution:
+        if interface in jpc_interfaces:
+            execute_fn = jpc.execute if config.grad_on_execution else inner_execute
+
+        elif config.grad_on_execution:
 
             def execute_fn(internal_tapes):
                 """A partial function that wraps the execute_and_compute_derivatives method of the device.
@@ -682,11 +698,17 @@ def execute(
         # autodiff frameworks.
         tapes = [expand_fn(t) for t in tapes]
 
+        jpc = DeviceJacobians(device, gradient_kwargs, config)
+
         if gradient_kwargs.get("method", "") == "adjoint_jacobian":
             tapes = _adjoint_jacobian_expansion(tapes, grad_on_execution, interface, max_expansion)
 
-        # grad on execution or best was chosen
-        if grad_on_execution is True or grad_on_execution == "best":
+        _grad_on_execution = grad_on_execution
+
+        if interface in jpc_interfaces:
+            execute_fn = jpc.execute if grad_on_execution else inner_execute
+
+        elif grad_on_execution is True or grad_on_execution == "best":
             # replace the forward execution function to return
             # both results and gradients
             def device_execute_and_gradients(internal_tapes, **gradient_kwargs):
@@ -699,7 +721,6 @@ def execute(
 
             execute_fn = device_execute_and_gradients
             gradient_fn = None
-            _grad_on_execution = True
 
         else:
             # need to override to have no cache
@@ -740,10 +761,20 @@ def execute(
         # within execute_and_gradients, so providing a gradient_fn
         # in this case would have ambiguous behaviour.
         raise ValueError("Gradient transforms cannot be used with grad_on_execution=True")
+    elif interface in jpc_interfaces:
+        jpc = TransformJacobianProducts(execute_fn, gradient_fn, gradient_kwargs)
+        for _ in range(1, max_diff):
+            ml_boundary_execute = _get_ml_boundary_execute(interface, _grad_on_execution)
+            execute_fn = partial(ml_boundary_execute, execute_fn=execute_fn, jpc=jpc)
+            jpc = TransformJacobianProducts(execute_fn, gradient_fn, gradient_kwargs)
 
     ml_boundary_execute = _get_ml_boundary_execute(interface, _grad_on_execution)
-    results = ml_boundary_execute(
-        tapes, device, execute_fn, gradient_fn, gradient_kwargs, _n=1, max_diff=max_diff
-    )
+
+    if interface in jpc_interfaces:
+        results = ml_boundary_execute(tapes, execute_fn, jpc)
+    else:
+        results = ml_boundary_execute(
+            tapes, device, execute_fn, gradient_fn, gradient_kwargs, _n=1, max_diff=max_diff
+        )
 
     return post_processing(results)

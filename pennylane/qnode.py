@@ -910,6 +910,9 @@ class QNode:
         if self.expansion_strategy == "device" and not isinstance(self.device, qml.devices.Device):
             self._tape = self.device.expand_fn(self.tape, max_expansion=self.max_expansion)
 
+        if self.expansion_strategy == "program":
+            self._tape = self.transform_program((self.tape,))[0][0]
+
         # If the gradient function is a transform, expand the tape so that
         # all operations are supported by the transform.
         if isinstance(self.gradient_fn, qml.gradients.gradient_transform):

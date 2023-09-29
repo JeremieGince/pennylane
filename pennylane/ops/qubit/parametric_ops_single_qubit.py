@@ -565,6 +565,13 @@ class Rot(Operation):
     grad_method = "A"
     parameter_frequencies = [(1,), (1,), (1,)]
 
+    def _flatten(self):
+        return self.data, self._wires
+
+    @classmethod
+    def _unflatten(cls, data, metadata):
+        return cls(*data, wires=metadata)
+
     def __init__(self, phi, theta, omega, wires, id=None):
         super().__init__(phi, theta, omega, wires=wires, id=id)
 

@@ -21,7 +21,7 @@ from typing import Sequence
 from pennylane.typing import TensorLike
 from pennylane.operation import Operator
 
-from pennylane.pytrees import flatten, unflatten
+from pennylane.pytrees import tree_flatten, tree_unflatten
 
 
 def bind_new_parameters(op: Operator, params: Sequence[TensorLike]) -> Operator:
@@ -39,5 +39,5 @@ def bind_new_parameters(op: Operator, params: Sequence[TensorLike]) -> Operator:
     Returns:
         .Operator: New operator with updated parameters
     """
-    _, structure = flatten(op)
-    return unflatten(params, structure)
+    _, structure = tree_flatten(op)
+    return tree_unflatten(params, structure)

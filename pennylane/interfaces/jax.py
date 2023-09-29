@@ -76,7 +76,7 @@ def get_jax_interface_name(tapes):
     return "jax"
 
 
-def execute(tapes, device, execute_fn, gradient_fn, gradient_kwargs, _n=1, max_diff=2):
+def execute(tapes, execute_fn, jpc):
     """Execute a batch of tapes with JAX parameters on a device.
 
     Args:
@@ -100,64 +100,18 @@ def execute(tapes, device, execute_fn, gradient_fn, gradient_kwargs, _n=1, max_d
         list[list[float]]: A nested list of tape results. Each element in
         the returned list corresponds in order to the provided tapes.
     """
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug(
-            "Entry with args=(tapes=%s, device=%s, execute_fn=%s, gradient_fn=%s, gradient_kwargs=%s, _n=%s, max_diff=%s) called by=%s",
-            tapes,
-            repr(device),
-            execute_fn
-            if not (logger.isEnabledFor(qml.logging.TRACE) and callable(execute_fn))
-            else "\n" + inspect.getsource(execute_fn) + "\n",
-            gradient_fn
-            if not (logger.isEnabledFor(qml.logging.TRACE) and callable(gradient_fn))
-            else "\n" + inspect.getsource(gradient_fn) + "\n",
-            gradient_kwargs,
-            _n,
-            max_diff,
-            "::L".join(str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]),
-        )
-
     # Set the trainable parameters
-    if _n == 1:
-        for tape in tapes:
-            params = tape.get_parameters(trainable_only=False)
-            tape.trainable_params = qml.math.get_trainable_indices(params)
+    for tape in tapes:
+        params = tape.get_parameters(trainable_only=False)
+        tape.trainable_params = qml.math.get_trainable_indices(params)
 
     parameters = tuple(list(t.get_parameters()) for t in tapes)
 
-    if gradient_fn is None:
-        # PennyLane forward execution
-        return _execute_fwd(
-            parameters,
-            tapes,
-            execute_fn,
-            gradient_kwargs,
-            _n=_n,
-        )
-
     # PennyLane backward execution
-    return _execute_bwd(
-        parameters,
-        tapes,
-        device,
-        execute_fn,
-        gradient_fn,
-        gradient_kwargs,
-        _n=_n,
-        max_diff=max_diff,
-    )
+    return _execute_bwd(parameters, tapes, execute_fn, jpc)
 
 
-def _execute_bwd(
-    params,
-    tapes,
-    device,
-    execute_fn,
-    gradient_fn,
-    gradient_kwargs,
-    _n=1,
-    max_diff=2,
-):
+def _execute_bwd(params, tapes, execute_fn, jpc):
     """The main interface execution function where jacobians of the execute
     function are computed by the registered backward function."""
 
@@ -170,50 +124,14 @@ def _execute_bwd(
     @jax.custom_jvp
     def execute_wrapper(params):
         new_tapes = set_parameters_on_copy_and_unwrap(tapes, params)
-        res, _ = execute_fn(new_tapes, **gradient_kwargs)
+        res = execute_fn(new_tapes)
         return _to_jax_shot_vector(res) if has_partitioned_shots else _to_jax(res)
 
     @execute_wrapper.defjvp
     def execute_wrapper_jvp(primals, tangents):
         """Primals[0] are parameters as Jax tracers and tangents[0] is a list of tangent vectors as Jax tracers."""
-        if isinstance(gradient_fn, qml.gradients.gradient_transform):
-            at_max_diff = _n == max_diff
-            new_tapes = set_parameters_on_copy_and_unwrap(tapes, primals[0], unwrap=False)
-            _args = (
-                new_tapes,
-                tangents[0],
-                gradient_fn,
-            )
-            _kwargs = {
-                "reduction": "append",
-                "gradient_kwargs": gradient_kwargs,
-            }
-            if at_max_diff:
-                jvp_tapes, processing_fn = qml.gradients.batch_jvp(*_args, **_kwargs)
-                jvps = processing_fn(execute_fn(jvp_tapes)[0])
-            else:
-                jvp_tapes, processing_fn = qml.gradients.batch_jvp(*_args, **_kwargs)
-
-                jvps = processing_fn(
-                    execute(
-                        jvp_tapes,
-                        device,
-                        execute_fn,
-                        gradient_fn,
-                        gradient_kwargs,
-                        _n=_n + 1,
-                        max_diff=max_diff,
-                    )
-                )
-            res = execute_wrapper(primals[0])
-        else:
-            # Execution: execute the function first
-            res = execute_wrapper(primals[0])
-            # Backward: Gradient function is a device method.
-            new_tapes = set_parameters_on_copy_and_unwrap(tapes, primals[0], unwrap=False)
-            jacs = gradient_fn(new_tapes, **gradient_kwargs)
-            multi_measurements = [len(tape.measurements) > 1 for tape in new_tapes]
-            jvps = _compute_jvps(jacs, tangents[0], multi_measurements)
+        new_tapes = set_parameters_on_copy_and_unwrap(tapes, primals[0], unwrap=False)
+        res, jvps = jpc.execute_and_compute_jvp(new_tapes, tangents[0])
 
         return res, jvps
 

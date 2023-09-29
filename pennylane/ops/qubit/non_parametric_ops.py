@@ -56,6 +56,13 @@ class Hadamard(Observable, Operation):
 
     _queue_category = "_ops"
 
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
     def label(self, decimals=None, base_label=None, cache=None):
         return base_label or "H"
 
@@ -202,8 +209,15 @@ class PauliX(Observable, Operation):
 
     _queue_category = "_ops"
 
-    def __init__(self, *params, wires=None, id=None):
-        super().__init__(*params, wires=wires, id=id)
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
+    def __init__(self, wires=None, id=None):
+        super().__init__(wires=wires, id=id)
         self._pauli_rep = qml.pauli.PauliSentence({qml.pauli.PauliWord({self.wires[0]: "X"}): 1.0})
 
     def label(self, decimals=None, base_label=None, cache=None):
@@ -357,8 +371,15 @@ class PauliY(Observable, Operation):
 
     _queue_category = "_ops"
 
-    def __init__(self, *params, wires=None, id=None):
-        super().__init__(*params, wires=wires, id=id)
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
+    def __init__(self, wires=None, id=None):
+        super().__init__(wires=wires, id=id)
         self._pauli_rep = qml.pauli.PauliSentence({qml.pauli.PauliWord({self.wires[0]: "Y"}): 1.0})
 
     def label(self, decimals=None, base_label=None, cache=None):
@@ -509,8 +530,15 @@ class PauliZ(Observable, Operation):
 
     _queue_category = "_ops"
 
-    def __init__(self, *params, wires=None, id=None):
-        super().__init__(*params, wires=wires, id=id)
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
+    def __init__(self, wires=None, id=None):
+        super().__init__(wires=wires, id=id)
         self._pauli_rep = qml.pauli.PauliSentence({qml.pauli.PauliWord({self.wires[0]: "Z"}): 1.0})
 
     def label(self, decimals=None, base_label=None, cache=None):
@@ -663,6 +691,13 @@ class S(Operation):
 
     basis = "Z"
 
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
     @staticmethod
     @lru_cache()
     def compute_matrix():  # pylint: disable=arguments-differ
@@ -772,6 +807,13 @@ class T(Operation):
 
     basis = "Z"
 
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
     @staticmethod
     @lru_cache()
     def compute_matrix():  # pylint: disable=arguments-differ
@@ -880,6 +922,13 @@ class SX(Operation):
     """int: Number of trainable parameters that the operator depends on."""
 
     basis = "X"
+
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
 
     @staticmethod
     @lru_cache()
@@ -998,6 +1047,13 @@ class CNOT(Operation):
 
     basis = "X"
 
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(wires=metadata)
+
     def label(self, decimals=None, base_label=None, cache=None):
         return base_label or "X"
 
@@ -1069,6 +1125,13 @@ class CH(Operation):
     """int: Number of trainable parameters that the operator depends on."""
 
     basis = "Hadamard"
+
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
 
     def label(self, decimals=None, base_label=None, cache=None):
         return base_label or "H"
@@ -1170,6 +1233,13 @@ class SWAP(Operation):
     num_params = 0
     """int: Number of trainable parameters that the operator depends on."""
 
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
     @staticmethod
     @lru_cache()
     def compute_matrix():  # pylint: disable=arguments-differ
@@ -1259,6 +1329,13 @@ class ECR(Operation):
 
     num_wires = 2
     num_params = 0
+
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
 
     @staticmethod
     def compute_matrix():  # pylint: disable=arguments-differ
@@ -1385,6 +1462,13 @@ class ISWAP(Operation):
     num_params = 0
     """int: Number of trainable parameters that the operator depends on."""
 
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
     @staticmethod
     @lru_cache()
     def compute_matrix():  # pylint: disable=arguments-differ
@@ -1499,6 +1583,13 @@ class SISWAP(Operation):
     num_wires = 2
     num_params = 0
     """int: Number of trainable parameters that the operator depends on."""
+
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
 
     @staticmethod
     @lru_cache()
@@ -1646,6 +1737,13 @@ class CSWAP(Operation):
     def label(self, decimals=None, base_label=None, cache=None):
         return base_label or "SWAP"
 
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
+
     @staticmethod
     @lru_cache()
     def compute_matrix():  # pylint: disable=arguments-differ
@@ -1758,6 +1856,13 @@ class CCZ(Operation):
     """int: Number of trainable parameters that the operator depends on."""
 
     basis = "Z"
+
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
 
     def label(self, decimals=None, base_label=None, cache=None):
         return base_label or "Z"
@@ -1900,6 +2005,13 @@ class Toffoli(Operation):
     """int: Number of trainable parameters that the operator depends on."""
 
     basis = "X"
+
+    def _flatten(self):
+        return tuple(), self._wires
+
+    @classmethod
+    def _unflatten(cls, _, metadata):
+        return cls(metadata)
 
     def label(self, decimals=None, base_label=None, cache=None):
         return base_label or "X"

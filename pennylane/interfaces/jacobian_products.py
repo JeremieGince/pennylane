@@ -232,20 +232,20 @@ class TransformJacobianProducts(JacobianProductCalculator):
 
 
 class DeviceJacobians(JacobianProductCalculator):
-    """Calculate jacobian products via a device.
+    """Calculate jacobian products via an experimental device.
 
     Args:
-        device (Union[pennylane.Device, pennylane.devicesDevice]): the device for execution and derivatives.
+        device (Union[pennylane.Device, pennylane.devices.experimental.Device]): the device for execution and derivatives.
             Must support supports first order gradients with the requested configuration.
         gradient_kwargs (dict): a dictionary of keyword options for the gradients. Only used with a :class:`~.pennylane.Device`
             old device interface.
-        execution_config (pennylane.devices.ExecutionConfig): a datastructure containing the parameters needed to fully
-           describe the execution. Only used with :class:`pennylane.devices.Device` new device interface.
+        execution_config (pennylane.devices.experimental.ExecutionConfig): a datastructure containing the parameters needed to fully
+           describe the execution. Only used with :class:`pennylane.devices.experimental.ExecutionConfig` new device interface.
 
     **Examples:**
 
-    >>> device = qml.device('default.qubit')
-    >>> config = qml.devices.ExecutionConfig(gradient_method="adjoint")
+    >>> device = qml.devices.experimental.DefaultQubit2()
+    >>> config = qml.devices.experimental.ExecutionConfig(gradient_method="adjoint")
     >>> jpc = DeviceJacobians(device, {}, config)
 
     This same class can also be used with the old device interface.
@@ -298,9 +298,9 @@ class DeviceJacobians(JacobianProductCalculator):
 
     def __init__(
         self,
-        device: Union[qml.devices.Device, qml.Device],
+        device: Union["qml.devices.experimental.Device", "qml.Device"],
         gradient_kwargs: dict,
-        execution_config: Optional["qml.devices.ExecutionConfig"] = None,
+        execution_config: Optional["qml.devices.experimental.ExecutionConfig"] = None,
     ):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
@@ -536,3 +536,37 @@ class DeviceJacobians(JacobianProductCalculator):
         jacs = self._dev_compute_derivatives(tapes)
         self._jacs_cache[id(tapes)] = jacs
         return jacs
+
+
+class DeviceJacobianProducts(JacobianProductCalculator):
+    """Compute the jacobian products using the native device methods."""
+
+    def __repr__(self):
+        return f"<DeviceJacobianProducts: {self._device}, {self._execution_config}>"
+
+    def __init__(self, device, execution_config):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("DeviceJacobianProducts created with (%s, %s)", device, execution_config)
+        self._device = device
+        self._execution_config = execution_config
+
+    def execute_and_compute_jvp(
+        self, tapes: Batch, tangents: Tuple[Tuple[TensorLike]]
+    ) -> Tuple[ResultBatch, Tuple]:
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("execute_and_compute_jvp called with (%s, %s)", tapes, tangents)
+        numpy_tapes = tuple(qml.transforms.convert_to_numpy_parameters(t) for t in tapes)
+        return self._device.execute_and_compute_jvp(numpy_tapes, tangents, self._execution_config)
+
+    def compute_vjp(self, tapes: Batch, dy: Tuple[Tuple[TensorLike]]) -> Tuple:
+        if logger.isEnabledFor(logging.DEBUG):  # pragma: no-cover
+            logger.debug("compute_vjp called with (%s, %s)", tapes, dy)
+        numpy_tapes = tuple(qml.transforms.convert_to_numpy_parameters(t) for t in tapes)
+        dy = qml.math.unwrap(dy)
+        return self._device.compute_vjp(numpy_tapes, dy, self._execution_config)
+
+    def compute_jacobian(self, tapes: Batch):
+        if logger.isEnabledFor(logging.DEBUG):  # pragma: no-cover
+            logger.debug("compute_jacobian called with %s", tapes)
+        numpy_tapes = tuple(qml.transforms.convert_to_numpy_parameters(t) for t in tapes)
+        return self._device.compute_derivatives(numpy_tapes, self._execution_config)
