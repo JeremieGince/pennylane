@@ -113,19 +113,19 @@ def hamiltonian_expand(tape: QuantumTape, group: bool = True) -> (Sequence[Quant
     2
     """
 
+    def null_postprocessing(results):
+        """An empty postprocessing function."""
+        return results[0]
+
     if (
         len(tape.measurements) != 1
         or not isinstance(hamiltonian := tape.measurements[0].obs, qml.Hamiltonian)
         or not isinstance(tape.measurements[0], ExpectationMP)
     ):
-        raise ValueError(
-            "Passed tape must end in `qml.expval(H)`, where H is of type `qml.Hamiltonian`"
-        )
+        return (tape,), null_postprocessing
 
     if qml.math.shape(hamiltonian.coeffs) == (0,) and qml.math.shape(hamiltonian.ops) == (0,):
-        raise ValueError(
-            "The Hamiltonian in the tape has no terms defined - cannot perform the Hamiltonian expansion."
-        )
+        return (tape,), null_postprocessing
 
     # note: for backward passes of some frameworks
     # it is crucial to use the hamiltonian.data attribute,

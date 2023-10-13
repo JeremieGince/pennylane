@@ -65,6 +65,59 @@ def _operator_decomposition_gen(
 #######################
 
 
+def if_finite_shots(f: Callable):
+    """Modify a transform to be applied only if finite shots are present.
+
+    Args:
+        transform (Union[Callable, TransformDispatcher]): The original transform.
+
+    Returns:
+        Union[Callable, TransfromDispatcher]: A transform that is only applied if finite shots are present.
+
+
+    **Example:**
+
+    For example, we can apply ``if_finite_shots`` to :func:`~.hamiltonian_expand` to only apply it
+    when the tape has finite shots.
+
+    When the tape is analytic, the hamiltonian is left as is:
+
+    >>> tape = qml.tape.QuantumScript([], [qml.expval(qml.PauliZ(0) + qml.PauliY(0))], shots=None)
+    >>> if_finite_shots(qml.transforms.hamiltonian_expand)(tape)[0]
+    ((<QuantumScript: wires=[0], params=2>,)
+
+    But when we have finite shots, the hamiltonian is split up into a batch of two.
+
+    >>> tape = qml.tape.QuantumScript([], [qml.expval(qml.PauliZ(0) + qml.PauliY(0))], shots=10)
+    >>> if_finite_shots(qml.transforms.hamiltonian_expand)(tape)[0]
+    ([<QuantumScript: wires=[0], params=0>, <QuantumScript: wires=[0], params=0>],
+
+    """
+
+    if isinstance(f, qml.transforms.core.TransformDispatcher):
+        new_expand_transform = if_finite_shots(f.expand_transform) if f.expand_transform else None
+        return qml.transforms.transform(
+            if_finite_shots(f.transform),
+            expand_transform=new_expand_transform,
+            # classical_cotransform=if_finite_shots(transform.classical_cotransform),
+            is_informative=f.is_informative,
+            final_transform=f.final_transform,
+        )
+
+    def if_finite_shots_transform(
+        tape: qml.tape.QuantumTape, *args, **kwargs
+    ) -> (Sequence[qml.tape.QuantumTape], Callable):
+        if tape.shots:
+            return f(tape, *args, **kwargs)
+        return (tape,), null_postprocessing
+
+    if_finite_shots_transform.__doc__ = (
+        "A transform applied only when finite shots are present.\n" + str(f.__doc__)
+    )
+
+    return if_finite_shots_transform
+
+
 @transform
 def no_sampling(
     tape: qml.tape.QuantumTape, name: str = "device"
