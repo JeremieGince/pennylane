@@ -364,7 +364,10 @@ def _execute_bwd(
             tuple(t for t in tangent if not isinstance(t, Zero)) for tangent in tangents[0]
         )
         multi_measurements = [len(tape.measurements) > 1 for tape in tapes]
-        jvps = _compute_jvps(jacobians, tangents_trainable, multi_measurements)
+        has_partitioned_shots = tapes[0].shots.has_partitioned_shots
+        jvps = _compute_jvps(
+            jacobians, tangents_trainable, multi_measurements, has_partitioned_shots
+        )
 
         results = execute_wrapper(params)
         return results, jvps

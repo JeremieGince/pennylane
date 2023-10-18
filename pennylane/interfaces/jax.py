@@ -213,7 +213,8 @@ def _execute_bwd(
             new_tapes = set_parameters_on_copy_and_unwrap(tapes, primals[0], unwrap=False)
             jacs = gradient_fn(new_tapes, **gradient_kwargs)
             multi_measurements = [len(tape.measurements) > 1 for tape in new_tapes]
-            jvps = _compute_jvps(jacs, tangents[0], multi_measurements)
+            has_partitioned_shots = tapes[0].shots.has_partitioned_shots
+            jvps = _compute_jvps(jacs, tangents[0], multi_measurements, has_partitioned_shots)
 
         return res, jvps
 
@@ -254,15 +255,15 @@ def _execute_fwd(
     return res
 
 
-def _compute_jvps(jacs, tangents, multi_measurements):
+def _compute_jvps(jacs, tangents, multi_measurements, has_partitioned_shots=False):
     """Compute the jvps of multiple tapes, directly for a Jacobian and tangents."""
-    jvps = []
-    for i, multi in enumerate(multi_measurements):
-        compute_func = (
-            qml.gradients.compute_jvp_multi if multi else qml.gradients.compute_jvp_single
+    f = {True: qml.gradients.compute_jvp_multi, False: qml.gradients.compute_jvp_single}
+    if has_partitioned_shots:
+        return tuple(
+            tuple(f[multi](dx, j) for j in jac)
+            for jac, dx, multi in zip(jacs, tangents, multi_measurements)
         )
-        jvps.append(compute_func(tangents[i], jacs[i]))
-    return tuple(jvps)
+    return tuple(f[multi](dx, jac) for jac, dx, multi in zip(jacs, tangents, multi_measurements))
 
 
 def _is_count_result(r):
