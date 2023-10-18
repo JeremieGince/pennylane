@@ -824,7 +824,7 @@ class QuantumScript:
         if len(shapes) == 1:
             return shapes[0]
 
-        if len(shots.shot_vector) > 1:
+        if shots.has_partitioned_shots:
             # put the shot vector axis before the measurement axis
             shapes = tuple(zip(*shapes))
 
