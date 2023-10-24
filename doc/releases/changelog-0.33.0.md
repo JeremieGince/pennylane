@@ -26,9 +26,9 @@
   tensor([0., 1.], requires_grad=True)
   ```
 
-  Here, we measure a probability of one on wire 1 as we postselect on the $|1\rangle$ state on wire
-  0, thus resulting in the circuit being projected onto the state corresponding to the measurement
-  outcome $|1\rangle$ on wire 0.
+  Here, we measure a probability of one on wire 1 as we postselect on the :math:`|1\rangle` state on
+  wire 0, thus resulting in the circuit being projected onto the state corresponding to the
+  measurement outcome :math:`|1\rangle` on wire 0.
 
 * Measurement statistics can now be collected for mid-circuit measurements.
   [(#4544)](https://github.com/PennyLaneAI/pennylane/pull/4544)
@@ -148,14 +148,16 @@
   plt.bar(range(len(output)), output)
   plt.show()
   ```
-  
-  <img src="_images/cosine_window.png" width=50%/>
 
-* Controlled gate sequences raised to decreasing powers, a sub-block in quantum phase estimation, can now be created with the new `CtrlSequence` operator.
-  [(#4707)](https://github.com/PennyLaneAI/pennylane/pull/4707/
-)
+  <img src="https://docs.pennylane.ai/en/stable/_images/cosine_window.png" width=50%/>
 
-  Applying sequences of controlled unitary operations raised to decreasing powers is a key part in the quantum phase estimation algorithm. The new `CtrlSequence` operator allows for the ability to create just this part of the algorithm, facilitating users to tinker with quantum phase estimation.
+* Controlled gate sequences raised to decreasing powers, a sub-block in quantum phase estimation, can now be created with the new 
+  `CtrlSequence` operator.
+  [(#4707)](https://github.com/PennyLaneAI/pennylane/pull/4707/)
+
+  Applying sequences of controlled unitary operations raised to decreasing powers is a key part in the quantum phase estimation 
+  algorithm. The new `CtrlSequence` operator allows for the ability to create just this part of the algorithm, facilitating users 
+  to tinker with quantum phase estimation.
 
   To use `CtrlSequence`, specify the controlled unitary operator and the control wires, `control`:
 
@@ -288,7 +290,19 @@
   [(#4607)](https://github.com/PennyLaneAI/pennylane/pull/4607)
   [(#4608)](https://github.com/PennyLaneAI/pennylane/pull/4608)
 
-  TODO
+  It is now possible to JIT-compile functions with arguments that are a `MeasurementProcess` or
+  a `QuantumScript`:
+
+  ```python
+  tape0 = qml.tape.QuantumTape([qml.RX(1.0, 0), qml.RY(0.5, 0)], [qml.expval(qml.PauliZ(0))])
+  dev = qml.device('lightning.qubit', wires=5)
+
+  execute_kwargs = {"device": dev, "gradient_fn": qml.gradients.param_shift, "interface":"jax"}
+
+  jitted_execute = jax.jit(qml.execute, static_argnames=execute_kwargs.keys())
+
+  jitted_execute((tape0, ), **execute_kwargs)
+  ```
 
 <h4>Improving QChem and existing algorithms</h4>
 
@@ -617,6 +631,8 @@
   [(#4690)](https://github.com/PennyLaneAI/pennylane/pull/4690)
 
 <h3>Bug fixes 🐛</h3>
+
+* Fixes `LocalHilbertSchmidt.compute_decomposition` so the template can be used in a qnode.
 
 * Providing `work_wires=None` to `qml.GroverOperator` no longer interprets `None` as a wire.
   [(#4668)](https://github.com/PennyLaneAI/pennylane/pull/4668)
