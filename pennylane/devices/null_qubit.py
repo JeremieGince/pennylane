@@ -299,7 +299,7 @@ class NullQubit(QubitDevice):
         return self._operation_calls
 
     def execute(self, circuit, **kwargs):
-        self.apply(circuit.operations, rotations=self._get_diagonalizing_gates(circuit), **kwargs)
+        # self.apply(circuit.operations, rotations=self._get_diagonalizing_gates(circuit), **kwargs)
 
         if self.tracker.active:
             shots_from_dev = self._shots
@@ -315,16 +315,18 @@ class NullQubit(QubitDevice):
             )
             self.tracker.update(executions=1, shots=self._shots, resources=resources)
             self.tracker.record()
-        return [0.0]
+        return tuple(np.zeros(mp.shape(self, circuit.shots)) for mp in circuit.measurements)
 
     def batch_execute(self, circuits, **kwargs):
-        res = []
-        for c in circuits:
-            res.append(self.execute(c))
         if self.tracker.active:
             self.tracker.update(batches=1, batch_len=len(circuits))
             self.tracker.record()
-        return res
+        return tuple(self.execute(c) for c in circuits)
 
     def adjoint_jacobian(self, tape, starting_state=None, use_device_state=False):
-        return [0.0]
+        out = []
+        for mp in tape.measurements:
+            mp_shape = mp.shape(self, tape.shots)
+            dxs = tuple(np.zeros(mp_shape) for _ in tape.trainable_params)
+            out.append(dxs)
+        return tuple(out)
