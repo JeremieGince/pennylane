@@ -19,13 +19,15 @@ from string import ascii_letters as alphabet
 import numpy as np
 
 import pennylane as qml
+from pennylane.performance_thresholds import (
+    EINSUM_OP_WIRECOUNT_PERF_THRESHOLD,
+    EINSUM_STATE_WIRECOUNT_PERF_THRESHOLD,
+    PAULIZ_TENSORDOT_THRESHOLD,
+)
 
 from pennylane import math
 
 SQRT2INV = 1 / math.sqrt(2)
-
-EINSUM_OP_WIRECOUNT_PERF_THRESHOLD = 3
-EINSUM_STATE_WIRECOUNT_PERF_THRESHOLD = 13
 
 
 def _get_slice(index, axis, num_axes):
@@ -235,7 +237,7 @@ def apply_pauliz(op: qml.PauliZ, state, is_state_batched: bool = False, debugger
     axis = op.wires[0] + is_state_batched
     n_dim = math.ndim(state)
 
-    if n_dim >= 9 and math.get_interface(state) == "tensorflow":
+    if n_dim >= PAULIZ_TENSORDOT_THRESHOLD and math.get_interface(state) == "tensorflow":
         return apply_operation_tensordot(op, state)
 
     sl_0 = _get_slice(0, axis, n_dim)

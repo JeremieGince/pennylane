@@ -26,6 +26,7 @@ from pennylane.measurements import (
     MeasurementValue,
     ExpectationMP,
 )
+from pennylane.performance_thresholds import MEASURE_SUM_SPARSE_DOT
 from pennylane.typing import TensorLike
 from pennylane.wires import Wires
 
@@ -168,7 +169,7 @@ def get_measurement_function(
                     return sum_of_terms_method
                 if (
                     measurementprocess.obs.has_overlapping_wires
-                    and len(measurementprocess.obs.wires) > 7
+                    and len(measurementprocess.obs.wires) > MEASURE_SUM_SPARSE_DOT
                 ):
                     # Use tensor contraction for `Sum` expectation values with non-commuting summands
                     # and 8 or more wires as it's faster than using eigenvalues.
