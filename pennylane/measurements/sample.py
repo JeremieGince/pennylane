@@ -36,10 +36,13 @@ def sample(op: Optional[Union[Operator, MeasurementValue]] = None, wires=None) -
     specified on the device.
 
     Args:
-        op (Observable or MeasurementValue): a quantum observable object. To get samples
-            for mid-circuit measurements, ``op`` should be a``MeasurementValue``.
+        op (Observable): a quantum observable object
         wires (Sequence[int] or int or None): the wires we wish to sample from; ONLY set wires if
             op is ``None``
+        mv (Union[MeasurementValue, Sequence[MeasurementValue]]): One or more
+            ``MeasurementValue``'s corresponding to mid-circuit measurements. To get
+            probabilities for more than one ``MeasurementValue``, they can be passed
+            in a list or tuple or composed using arithmetic operators.
 
     Returns:
         SampleMP: Measurement process instance

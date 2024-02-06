@@ -25,7 +25,7 @@ from .measurements import Expectation, SampleMeasurement, StateMeasurement
 from .mid_measure import MeasurementValue
 
 
-def expval(op: Union[Operator, MeasurementValue]):
+def expval(op: Operator = None, mv: Union[MeasurementValue, Sequence[MeasurementValue]] = None):
     r"""Expectation value of the supplied observable.
 
     **Example:**
@@ -47,9 +47,10 @@ def expval(op: Union[Operator, MeasurementValue]):
     -0.4794255386042029
 
     Args:
-        op (Union[Observable, MeasurementValue]): a quantum observable object. To
-            get expectation values for mid-circuit measurements, ``op`` should be
-            a ``MeasurementValue``.
+        op (Observable): a quantum observable object
+        mv (MeasurementValue): ``MeasurementValue`` corresponding to mid-circuit
+            measurements. To get the variance for more than one ``MeasurementValue``,
+            they can be composed using arithmetic operators.
 
     Returns:
         ExpectationMP: measurement process instance

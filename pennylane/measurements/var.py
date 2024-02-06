@@ -30,9 +30,10 @@ def var(op: Union[Operator, MeasurementValue]) -> "VarianceMP":
     r"""Variance of the supplied observable.
 
     Args:
-        op (Union[Operator, MeasurementValue]): a quantum observable object.
-            To get variances for mid-circuit measurements, ``op`` should be a
-            ``MeasurementValue``.
+        op (Operator): a quantum observable object.
+        mv (MeasurementValue): ``MeasurementValue`` corresponding to mid-circuit
+            measurements. To get the variance for more than one ``MeasurementValue``,
+            they can be composed using arithmetic operators.
 
     Returns:
         VarianceMP: Measurement process instance
