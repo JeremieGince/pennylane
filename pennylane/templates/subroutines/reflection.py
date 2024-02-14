@@ -20,7 +20,7 @@ import numpy as np
 import pennylane as qml
 from pennylane.operation import Operation
 from pennylane.ops import SymbolicOp
-import numpy as np
+
 
 
 class Reflection(SymbolicOp, Operation):
