@@ -1681,7 +1681,7 @@ class QubitDevice(Device):
             probs = self.probability(
                 wires=observable.wires, shot_range=shot_range, bin_size=bin_size
             )
-            return probs[idx]
+            return probs[..., idx]
 
         # exact expectation value
         if self.shots is None:
