@@ -1211,10 +1211,10 @@ class QubitDevice(Device):
         if self._ndim(state_probability) == 2:
             # np.random.choice does not support broadcasting as needed here.
             return np.array(
-                [np.random.choice(basis_states, shots, p=prob) for prob in state_probability]
+                [np.random.choice(basis_states, shots, p=prob / np.sum(prob)) for prob in state_probability]
             )
 
-        return np.random.choice(basis_states, shots, p=state_probability)
+        return np.random.choice(basis_states, shots, p=state_probability / np.sum(state_probability))
 
     @staticmethod
     def generate_basis_states(num_wires, dtype=np.uint32):
